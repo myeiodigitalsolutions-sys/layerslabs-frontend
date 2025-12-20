@@ -133,17 +133,41 @@ const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   };
 
 const placeOrder = async () => {
+  // Validate required fields before placing order
+  const requiredFields = {
+    phone: profile.phone,
+    address: profile.address,
+    city: profile.city,
+    pincode: profile.pincode,
+  };
+
+  const missingFields = Object.keys(requiredFields).filter(
+    (field) => !requiredFields[field]?.trim()
+  );
+
+  if (missingFields.length > 0) {
+    const confirmUpdate = window.confirm(
+      "Please complete your delivery details (Phone, Address, City, Pincode) to place the order.\n\nClick OK to go to your profile and update the details."
+    );
+
+    if (confirmUpdate) {
+      navigate("/profile");
+    }
+    return; // Stop order placement
+  }
+
+  // If all fields are present, proceed with order
   setPlacing(true);
   try {
     const token = await getIdToken(auth.currentUser);
 
-    // ✅ CUSTOM ORDER FLOW
+    // CUSTOM ORDER FLOW
     if (order.type === "customized") {
       await axios.patch(
         `${API}/api/customized/${order.customized.customOrderId}/pay`,
         {
           payment: profile.payment,
-          paymentStatus: profile.payment === "COD" ? "completed" : "pending"
+          paymentStatus: profile.payment === "COD" ? "completed" : "pending",
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -154,7 +178,7 @@ const placeOrder = async () => {
       return;
     }
 
-    // ✅ PRODUCT ORDER FLOW (UNCHANGED)
+    // PRODUCT ORDER FLOW
     const payload = {
       name: profile.name,
       email: profile.email,
@@ -164,18 +188,19 @@ const placeOrder = async () => {
       city: profile.city,
       pincode: profile.pincode,
       payment: profile.payment,
-      product: order.product
+      product: order.product,
     };
 
     await axios.post(`${API}/api/orders`, payload, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     localStorage.removeItem("pendingOrder");
     alert("Order placed successfully");
     navigate("/");
   } catch (err) {
-    alert("Failed to place order");
+    console.error(err);
+    alert("Failed to place order. Please try again.");
   } finally {
     setPlacing(false);
   }
