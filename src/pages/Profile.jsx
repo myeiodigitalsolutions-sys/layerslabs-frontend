@@ -47,7 +47,7 @@ export default function ProfilePage() {
 
       try {
         const token = await getIdToken(u);
-        const res = await fetch("${API_BASE_URL}/api/users/profile", {
+        const res = await fetch(`${API_BASE_URL}/api/users/profile`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -85,7 +85,7 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const token = await getIdToken(user);
-      const response = await fetch("${API_BASE_URL}/api/users/profile", {
+      const response = await fetch(`${API_BASE_URL}/api/users/profile`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
