@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { auth } from '../firebase';
 import { getIdToken, onAuthStateChanged } from 'firebase/auth';
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-const API_BASE = `${API_BASE_URL}`;
+
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 
 export default function CartPage() {
   const navigate = useNavigate();
