@@ -10,9 +10,9 @@ import { getIdToken, onAuthStateChanged } from 'firebase/auth';
 import modelPlaceholder from '../../assets/3d-file-placeholder.png';
 import JSZip from 'jszip';          // ← NEW: for ZIP download
 import { saveAs } from 'file-saver'; // ← NEW: to trigger download
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-const API_BASE = `${API_BASE_URL}`;
+
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const ADMIN_EMAIL = 'myeiokln@gmail.com';
 
 export default function CustomOrders() {

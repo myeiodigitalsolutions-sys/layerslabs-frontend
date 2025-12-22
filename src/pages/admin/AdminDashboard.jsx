@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, ShoppingCart, Layers } from 'lucide-react';
+import { Package, ShoppingCart, Layers,Mail } from 'lucide-react';
 import { auth } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -55,6 +55,14 @@ export default function AdminDashboard() {
       gradient: 'from-red-600 to-orange-600',
       path: '/admin/custom-orders',
     },
+
+    {
+  title: 'Contact Messages',
+  description: 'View messages from customers',
+  icon: Mail,
+  gradient: 'from-green-600 to-teal-600',
+  path: '/admin/contact-messages',
+},
   ];
 
   return (
