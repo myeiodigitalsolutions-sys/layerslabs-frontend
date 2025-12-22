@@ -1,7 +1,7 @@
 // src/components/Navbar.jsx
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ShoppingCart, Menu, ChevronDown, User, Bell, Package } from "lucide-react";
+import { ShoppingCart, Menu, ChevronDown, User, Bell, Package, Search, X } from "lucide-react";
 import PropTypes from "prop-types";
 
 import { auth, googleProvider } from "../firebase";
@@ -29,7 +29,7 @@ const MY_ADMIN_EMAIL = "myeiokln@gmail.com";
 export default function Navbar({
   onOpenSidebar = () => {},
 }) {
-  const [categories, setCategories] = useState([]); // ← Now fetched inside Navbar
+  const [categories, setCategories] = useState([]);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const categoriesRef = useRef(null);
 
@@ -38,10 +38,10 @@ export default function Navbar({
   const debouncedQuery = useDebouncedValue(query, 250);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false); // New state for mobile search
   const searchRef = useRef(null);
   const navigate = useNavigate();
-  const location = useLocation(); // to detect page changes
-  const [searchFocused, setSearchFocused] = useState(false);
+  const location = useLocation();
 
   // AUTH
   const [user, setUser] = useState(null);
@@ -52,8 +52,9 @@ export default function Navbar({
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const notifRef = useRef(null);
 
-  // Fetch categories once (or when page changes)
+  // Fetch categories
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/categories`)
       .then((res) => res.json())
@@ -61,7 +62,7 @@ export default function Navbar({
         setCategories(Array.isArray(data) ? data : []);
       })
       .catch((err) => console.error("Failed to load categories:", err));
-  }, [location.pathname]); // re-fetch if needed, or remove this if categories don't change
+  }, [location.pathname]);
 
   // Load notifications
   async function loadNotifications(userObj) {
@@ -90,6 +91,9 @@ export default function Navbar({
       }
       if (searchRef.current && !searchRef.current.contains(e.target)) {
         setShowSuggestions(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
       }
       if (!e.target.closest(".auth-area")) {
         setAuthMenuOpen(false);
@@ -126,6 +130,7 @@ export default function Navbar({
     setQuery("");
     setSuggestions([]);
     setShowSuggestions(false);
+    setSearchOpen(false);
     navigate(`/product/${product._id}`);
   }
 
@@ -201,6 +206,25 @@ export default function Navbar({
     }
   }
 
+  async function markAllNotificationsRead() {
+    if (!user) return;
+    try {
+      const token = await getIdToken(auth.currentUser);
+      const res = await fetch(`${API_BASE_URL}/api/notifications/mark-all-read`, {
+        method: "PATCH",
+        headers: { 
+          Authorization: `Bearer ${token}`, 
+          "Content-Type": "application/json" 
+        },
+      });
+      if (res.ok) {
+        await loadNotifications(auth.currentUser);
+      }
+    } catch (err) {
+      console.error("markAllNotificationsRead error", err);
+    }
+  }
+
   function goToCategory(c) {
     if (c) {
       navigate("/", { state: { categoryId: c._id, categorySlug: c.slug || c.name } });
@@ -211,26 +235,26 @@ export default function Navbar({
   }
 
   return (
-    <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-xl z-40 border-b border-gray-200">
+    <nav className="fixed top-0 w-full bg-white/50 backdrop-blur-md z-40 border-b border-gray-200/50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-20 flex items-center justify-between">
+        <div className="h-16 md:h-20 flex items-center justify-between">
           {/* LEFT */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <button
               onClick={onOpenSidebar}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-gray-100 md:hidden"
               aria-label="Open menu"
             >
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5 md:w-6 md:h-6" />
             </button>
 
-            <Link to="/" className="text-2xl font-black bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
+            <Link to="/" className="text-lg sm:text-xl md:text-2xl font-black bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent whitespace-nowrap">
               Layer Labs
             </Link>
           </div>
 
           {/* CENTER - Desktop Nav */}
-          <div className="hidden md:flex items-center space-x-6">
+          <div className="hidden lg:flex items-center space-x-6">
             <Link to="/" className="text-gray-700 font-medium hover:text-red-600 transition">
               Home
             </Link>
@@ -267,33 +291,28 @@ export default function Navbar({
               )}
             </div>
 
-            <Link to="/heroes" className="text-gray-700 font-medium hover:text-red-600 transition">
-              Heroes
+            <Link to="/customize" className="text-gray-700 font-medium hover:text-red-600 transition">
+              Customize 3D
             </Link>
-            <Link to="/villains" className="text-gray-700 font-medium hover:text-red-600 transition">
-              Villains
+            <Link to="/about" className="text-gray-700 font-medium hover:text-red-600 transition">
+              About us
             </Link>
             <Link to="/contact" className="text-gray-700 font-medium hover:text-red-600 transition">
               Contact
             </Link>
-            <Link to="/customize" className="text-gray-700 font-medium hover:text-red-600 transition">
-              Customize 3D
-            </Link>
           </div>
 
           {/* RIGHT */}
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <div ref={searchRef} className={`relative transition-all ${searchFocused ? "w-64 md:w-96" : "w-36 md:w-64"}`}>
+          <div className="flex items-center gap-2 md:gap-4">
+            {/* Desktop Search - Always visible on desktop */}
+            <div ref={searchRef} className="hidden md:block relative w-64">
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onFocus={() => {
                   if (suggestions.length) setShowSuggestions(true);
-                  setSearchFocused(true);
                 }}
-                onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
                 placeholder="Search..."
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 text-black placeholder-gray-400 text-sm"
               />
@@ -318,24 +337,33 @@ export default function Navbar({
               )}
             </div>
 
-           <Link to="/cart" className="flex items-center gap-2">
-  <ShoppingCart className="w-6 h-6" />
-  <span className="hidden md:block">Cart</span>
-</Link>
+            {/* Mobile Search Icon - Only visible on mobile */}
+            <button
+              onClick={() => setSearchOpen(!searchOpen)}
+              className="md:hidden p-2 rounded-md hover:bg-gray-100"
+              aria-label="Search"
+            >
+              {searchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+            </button>
+
+            <Link to="/cart" className="flex items-center gap-1 md:gap-2 p-2 md:p-0 rounded-md hover:bg-gray-100 md:hover:bg-transparent">
+              <ShoppingCart className="w-5 h-5 md:w-6 md:h-6" />
+              <span className="hidden lg:block">Cart</span>
+            </Link>
 
             {/* Notifications */}
-            <div className="relative">
+            <div ref={notifRef} className="relative">
               <button
                 onClick={async () => {
                   setNotifOpen((s) => !s);
                   if (!notifOpen && user) await loadNotifications(auth.currentUser);
                 }}
-                className="relative p-1 rounded-md hover:bg-gray-100"
+                className="relative p-2 rounded-md hover:bg-gray-100"
                 title="Notifications"
               >
-                <Bell className="w-6 h-6 text-gray-600" />
+                <Bell className="w-5 h-5 md:w-6 md:h-6 text-gray-600" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -343,7 +371,17 @@ export default function Navbar({
 
               {notifOpen && (
                 <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg border border-gray-100 rounded-lg z-50 p-2">
-                  <div className="text-sm font-semibold mb-2">Notifications</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-semibold">Notifications</div>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllNotificationsRead}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
                   {notifications.length === 0 ? (
                     <div className="text-xs text-gray-500">No notifications</div>
                   ) : (
@@ -371,7 +409,7 @@ export default function Navbar({
                 <>
                   <button
                     onClick={() => setShowLoginPanel((s) => !s)}
-                    className="px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50 text-red-600"
+                    className="px-2 md:px-3 py-1.5 md:py-2 text-sm rounded-md border border-gray-200 hover:bg-gray-50 text-red-600"
                   >
                     Login
                   </button>
@@ -395,9 +433,9 @@ export default function Navbar({
                     className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-50"
                   >
                     {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || "user"} className="w-8 h-8 rounded-full object-cover" />
+                      <img src={user.photoURL} alt={user.displayName || "user"} className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover" />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gray-100 flex items-center justify-center">
                         <User className="w-4 h-4 text-gray-600" />
                       </div>
                     )}
@@ -440,6 +478,42 @@ export default function Navbar({
             </div>
           </div>
         </div>
+
+        {/* Mobile Search Bar - Expands below navbar when icon clicked */}
+        {searchOpen && (
+          <div ref={searchRef} className="md:hidden pb-4 relative">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                if (suggestions.length) setShowSuggestions(true);
+              }}
+              placeholder="Search products..."
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 text-black placeholder-gray-400 text-sm"
+              autoFocus
+            />
+
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-100 rounded-lg shadow-lg max-h-64 overflow-auto z-50">
+                {suggestions.map((p) => (
+                  <li
+                    key={p._id}
+                    onMouseDown={() => handleSelectSuggestion(p)}
+                    className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                  >
+                    {p.images && p.images[0] ? (
+                      <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-md object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-500">No</div>
+                    )}
+                    <div className="text-sm text-black">{p.name}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
     </nav>
   );
