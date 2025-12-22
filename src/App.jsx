@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Navbar from './components/Navbar.jsx';
 import Sidebar from './components/Sidebar.jsx';
@@ -20,6 +20,8 @@ export default function App() {
 
   const location = useLocation();
   const navigate = useNavigate();
+  const featuredSectionRef = useRef(null);
+  const showcaseSectionRef = useRef(null);
 
   useEffect(() => {
     const catId = location?.state?.categoryId;
@@ -91,6 +93,14 @@ export default function App() {
     window.scrollTo({ top: 300, behavior: 'smooth' });
   };
 
+  const scrollToFeatured = () => {
+    featuredSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const scrollToShowcase = () => {
+    showcaseSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <>
       <Navbar
@@ -108,8 +118,8 @@ export default function App() {
         onSelectCategory={selectCategory}
       />
 
-      {/* Hero Section - Fixed Mobile Responsiveness */}
-      <section className="pt-20 sm:pt-24 pb-16 sm:pb-24 md:pb-32 bg-gradient-to-br from-red-50 via-pink-50 to-white overflow-hidden relative">
+      {/* Hero Section */}
+      <section className="pt-20 sm:pt-24 pb-12 sm:pb-16 md:pb-20 bg-gradient-to-br from-red-50 via-pink-50 to-white overflow-hidden relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
           <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-gray-900 mb-4 sm:mb-6 leading-tight">
             LEGENDS
@@ -121,18 +131,44 @@ export default function App() {
             Premium hand-painted 3D printed collectibles • Limited editions
           </p>
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center px-4">
-            <button className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:shadow-2xl hover:scale-105 transition transform">
+            <button 
+              onClick={scrollToFeatured}
+              className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:shadow-2xl hover:scale-105 transition transform"
+            >
               Shop Collection
             </button>
-            <button className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 border-2 border-red-600 text-red-600 font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:bg-red-50 transition">
+            <button 
+              onClick={scrollToShowcase}
+              className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 border-2 border-red-600 text-red-600 font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:bg-red-50 transition"
+            >
               Watch Showcase
             </button>
           </div>
         </div>
       </section>
 
-      {/* Featured Products - Fixed Mobile Responsiveness */}
-      <section className="py-12 sm:py-16 md:py-24 bg-white">
+      {/* Banner Section */}
+      <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-r from-red-600 via-pink-600 to-red-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 text-center text-white">
+            <div className="p-4 sm:p-6">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-black mb-2">100+</div>
+              <div className="text-sm sm:text-base md:text-lg font-medium opacity-90">Unique Collectibles</div>
+            </div>
+            <div className="p-4 sm:p-6 border-t sm:border-t-0 sm:border-l sm:border-r border-white/30">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-black mb-2">Hand-Painted</div>
+              <div className="text-sm sm:text-base md:text-lg font-medium opacity-90">Premium Quality</div>
+            </div>
+            <div className="p-4 sm:p-6 border-t sm:border-t-0 border-white/30">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-black mb-2">Limited</div>
+              <div className="text-sm sm:text-base md:text-lg font-medium opacity-90">Edition Pieces</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products */}
+      <section ref={featuredSectionRef} className="py-12 sm:py-16 md:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-gray-900 leading-tight">
@@ -201,12 +237,12 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* IMAGE */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-red-50 to-pink-50 p-4 sm:p-5 md:p-6">
+                  {/* IMAGE - Fixed for Mobile */}
+                  <div className="relative overflow-hidden bg-gradient-to-br from-red-50 to-pink-50 aspect-square">
                     <img
                       src={image}
                       alt={product.name}
-                      className="w-full h-48 sm:h-56 md:h-64 lg:h-80 object-cover rounded-xl sm:rounded-2xl group-hover:scale-110 transition-transform duration-700 shadow-lg"
+                      className="w-full h-full object-contain p-4 sm:p-5 md:p-6 group-hover:scale-110 transition-transform duration-700"
                     />
                   </div>
 
@@ -256,15 +292,26 @@ export default function App() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 sm:py-16">
+      {/* Showcase Section */}
+      <section ref={showcaseSectionRef} className="py-12 sm:py-16 md:py-24 bg-gradient-to-br from-red-50 via-pink-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-3 sm:mb-4">
-            Layer Labs
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-black text-gray-900 mb-4 sm:mb-6 leading-tight">
+            Watch Our{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-pink-600">
+              Showcase
+            </span>
           </h2>
-          <p className="text-sm sm:text-base text-gray-400">© 2025 • Handcrafted with passion for collectors</p>
+          <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-12 max-w-3xl mx-auto">
+            See our collectibles come to life with detailed 360° views and behind-the-scenes creation process
+          </p>
+          <div className="aspect-video bg-gray-900 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl max-w-5xl mx-auto">
+            {/* Add your video embed or content here */}
+            <div className="w-full h-full flex items-center justify-center text-white text-lg sm:text-xl">
+              Video Showcase Coming Soon
+            </div>
+          </div>
         </div>
-      </footer>
+      </section>
     </>
   );
 }

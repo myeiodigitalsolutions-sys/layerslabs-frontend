@@ -13,12 +13,18 @@ import TrackOrders from './pages/TrackOrders';
 import OrderPage from './pages/OrderPage';
 import OrderCustom from './pages/OrderCustom';
 import CartPage from './pages/CartPage';
+import Footer from './components/Footer';  // <-- Add this import
+
+// Add these imports if not already there
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
 
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Products from './pages/admin/Products';
 import RegularOrders from './pages/admin/RegularOrders';
 import CustomOrders from './pages/admin/CustomOrders';
+  import ContactMessages from './pages/admin/ContactMessages';
 
 // Layout Components
 import Navbar from './components/Navbar';
@@ -45,10 +51,11 @@ function PublicLayout({ children }) {
 
   return (
     <>
-      <ScrollToTop />
+  <ScrollToTop />
       <Navbar onOpenSidebar={() => setSidebarOpen(true)} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      {children}
+      <main>{children}</main>
+      <Footer />  {/* <-- Footer added here */}
     </>
   );
 }
@@ -77,12 +84,16 @@ root.render(
         <Route path="/order-custom" element={<PublicLayout><OrderCustom /></PublicLayout>} />
         <Route path="/track-orders" element={<PublicLayout><TrackOrders /></PublicLayout>} />
         <Route path="/cart" element={<PublicLayout><CartPage /></PublicLayout>} />
+<Route path="/about" element={<PublicLayout><AboutPage /></PublicLayout>} />
+<Route path="/contact" element={<PublicLayout><ContactPage /></PublicLayout>} />
 
         {/* ADMIN ROUTES - No Navbar/Sidebar */}
         <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
         <Route path="/admin/products" element={<AdminLayout><Products /></AdminLayout>} />
         <Route path="/admin/regular-orders" element={<AdminLayout><RegularOrders /></AdminLayout>} />
         <Route path="/admin/custom-orders" element={<AdminLayout><CustomOrders /></AdminLayout>} />
+      
+<Route path="/admin/contact-messages" element={<AdminLayout><ContactMessages /></AdminLayout>} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
