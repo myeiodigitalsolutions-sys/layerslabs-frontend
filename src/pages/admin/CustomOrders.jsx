@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  Download, ArrowLeft, CheckCircle, Clock, Package, 
-  ChevronDown, ChevronUp, User, Phone, MapPin 
+import {
+  Download, ArrowLeft, ChevronDown, ChevronUp,
+  User, Phone, MapPin, Package, Clock
 } from 'lucide-react';
 import { auth } from '../../firebase';
 import { getIdToken, onAuthStateChanged } from 'firebase/auth';
 import modelPlaceholder from '../../assets/3d-file-placeholder.png';
-import JSZip from 'jszip';          // ← NEW: for ZIP download
-import { saveAs } from 'file-saver'; // ← NEW: to trigger download
-
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const ADMIN_EMAIL = 'myeiokln@gmail.com';
@@ -22,7 +21,7 @@ export default function CustomOrders() {
   const [customOrders, setCustomOrders] = useState([]);
   const [loadingCustoms, setLoadingCustoms] = useState(false);
   const [error, setError] = useState('');
-  const [expandedOrderId, setExpandedOrderId] = useState(null); // for collapsible
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
 
   async function getAuthHeaders() {
     if (!authUser) throw new Error('Not authenticated');
@@ -40,9 +39,9 @@ export default function CustomOrders() {
 
   const fetchCustomOrders = async () => {
     setLoadingCustoms(true);
+    setError('');
     try {
       if (!authUser || authUser.email !== ADMIN_EMAIL) return;
-
       const headers = await getAuthHeaders();
       const res = await axios.get(`${API_BASE}/api/customized`, { headers });
 
@@ -53,7 +52,7 @@ export default function CustomOrders() {
         length: o.length,
         price: o.price ?? null,
         material: o.material,
-        description: o.notes,
+        description: o.notes || '',
         name: o.name || 'Anonymous',
         email: o.email || 'No email provided',
         phone: o.phone || 'Not provided',
@@ -77,103 +76,79 @@ export default function CustomOrders() {
 
   useEffect(() => {
     if (!authChecked) return;
-    if (!authUser) {
-      alert('Please login as admin');
-      navigate('/', { replace: true });
-      return;
-    }
-    if (authUser.email !== ADMIN_EMAIL) {
-      alert('Unauthorized');
+    if (!authUser || authUser.email !== ADMIN_EMAIL) {
+      alert('Unauthorized access.');
       navigate('/', { replace: true });
       return;
     }
     fetchCustomOrders();
   }, [authChecked, authUser, navigate]);
 
-  // Single file download (existing)
-// Reliable single file download
-// Single file download (still works great)
-const handleDownloadImage = (imgUrl) => {
-  const url = new URL(imgUrl);
-  let filename = decodeURIComponent(url.pathname.split('/').pop().split('?')[0]);
+  const handleDownloadImage = (imgUrl) => {
+    const url = new URL(imgUrl);
+    let filename = decodeURIComponent(url.pathname.split('/').pop().split('?')[0]);
+    if (!filename.includes('.')) filename = 'downloaded_file';
 
-  if (!filename.includes('.')) {
-    filename = 'downloaded_file';
-  }
+    const a = document.createElement('a');
+    a.href = imgUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
-  const a = document.createElement('a');
-  a.href = imgUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-};
-
-// ZIP Download – NOW WORKS because CORS is set!
-const handleDownloadAll = async (order) => {
-  if (!order.images || order.images.length === 0) {
-    alert('No files to download');
-    return;
-  }
-
-  const zip = new JSZip();
-  const folder = zip.folder(`Custom_Order_${order._id.slice(-8)}`);
-
-  let successCount = 0;
-
-  try {
-    for (let i = 0; i < order.images.length; i++) {
-      const imgUrl = order.images[i];
-      const response = await fetch(imgUrl, { mode: 'cors' });
-
-      if (!response.ok) {
-        console.warn(`Failed to fetch: ${imgUrl}`);
-        continue;
-      }
-
-      const blob = await response.blob();
-
-      // Extract original filename
-      const url = new URL(imgUrl);
-      let filename = decodeURIComponent(url.pathname.split('/').pop().split('?')[0]);
-      if (!filename.includes('.')) {
-        filename = `file_${i + 1}`;
-      }
-
-      folder.file(filename, blob);
-      successCount++;
+  const handleDownloadAll = async (order) => {
+    if (!order.images || order.images.length === 0) {
+      alert('No files to download');
+      return;
     }
 
-    if (successCount === 0) throw new Error('No files downloaded');
+    const zip = new JSZip();
+    const folder = zip.folder(`Custom_Order_${order._id.slice(-8)}`);
+    let successCount = 0;
 
-    const zipBlob = await zip.generateAsync({ type: 'blob' });
-    saveAs(zipBlob, `Custom_Order_${order._id.slice(-8)}.zip`);
+    try {
+      for (let i = 0; i < order.images.length; i++) {
+        const imgUrl = order.images[i];
+        const response = await fetch(imgUrl, { mode: 'cors' });
+        if (!response.ok) continue;
 
-    alert(`Successfully zipped ${successCount} file(s)!`);
-  } catch (err) {
-    console.error('ZIP creation failed:', err);
-    alert('ZIP failed. Downloading files individually as fallback...');
-    // Fallback to individual downloads
-    order.images.forEach(imgUrl => handleDownloadImage(imgUrl));
-  }
-};
-const handleUpdateCustomOrder = async (o) => {
-  try {
-    const headers = await getAuthHeaders();
-    const send = {
-      price: o.price || null,
-      expectedDelivery: o.expectedDelivery || null,
-      status: o.status
-    };
-    await axios.patch(`${API_BASE}/api/customized/${o._id}`, send, { headers });
-    
-    alert('Order updated successfully!\nUser notified via app + Email sent with status & delivery date.');
-    fetchCustomOrders();
-  } catch (err) {
-    console.error(err);
-    alert('Failed to update order or send email');
-  }
-};
+        const blob = await response.blob();
+        const url = new URL(imgUrl);
+        let filename = decodeURIComponent(url.pathname.split('/').pop().split('?')[0]);
+        if (!filename.includes('.')) filename = `file_${i + 1}`;
+
+        folder.file(filename, blob);
+        successCount++;
+      }
+
+      if (successCount === 0) throw new Error('No files downloaded');
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, `Custom_Order_${order._id.slice(-8)}.zip`);
+      alert(`Successfully downloaded ${successCount} file(s) as ZIP!`);
+    } catch (err) {
+      console.error('ZIP failed:', err);
+      alert('ZIP failed. Downloading individually...');
+      order.images.forEach(handleDownloadImage);
+    }
+  };
+
+  const handleUpdateCustomOrder = async (o) => {
+    try {
+      const headers = await getAuthHeaders();
+      const send = {
+        price: o.price || null,
+        expectedDelivery: o.expectedDelivery || null,
+        status: o.status
+      };
+      await axios.patch(`${API_BASE}/api/customized/${o._id}`, send, { headers });
+      alert('Order updated & customer notified!');
+      fetchCustomOrders();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update order');
+    }
+  };
 
   const toggleExpand = (id) => {
     setExpandedOrderId(expandedOrderId === id ? null : id);
@@ -181,11 +156,11 @@ const handleUpdateCustomOrder = async (o) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-500/20 text-yellow-400';
-      case 'priced': return 'bg-blue-500/20 text-blue-400';
-      case 'in_progress': return 'bg-purple-500/20 text-purple-400';
-      case 'completed': return 'bg-green-500/20 text-green-400';
-      default: return 'bg-gray-500/20 text-gray-400';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'priced': return 'bg-blue-100 text-blue-800';
+      case 'in_progress': return 'bg-purple-100 text-purple-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -195,234 +170,264 @@ const handleUpdateCustomOrder = async (o) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <header className="mb-10 flex items-center justify-between">
+        {/* Header */}
+        <header className="mb-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/admin')} className="p-2 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700">
-              <ArrowLeft className="w-5 h-5" />
+            <button
+              onClick={() => navigate('/admin')}
+              className="p-3 rounded-xl bg-white shadow-md hover:shadow-lg transition"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-700" />
             </button>
-            <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
               Custom Orders Management
             </h1>
           </div>
         </header>
 
-        {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">{error}</div>}
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+            {error}
+          </div>
+        )}
 
-        <div className="bg-slate-900/70 border border-slate-700 rounded-3xl p-6 md:p-8 shadow-xl">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">Customized Orders ({customOrders.length})</h2>
-            <button onClick={fetchCustomOrders} className="px-4 py-2 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700">
+        {/* Orders List */}
+        <section className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-gray-800">
+              Customized Orders ({customOrders.length})
+            </h2>
+            <button
+              onClick={fetchCustomOrders}
+              className="px-6 py-3 rounded-xl bg-purple-600 text-white font-medium hover:bg-purple-700 transition"
+            >
               Refresh
             </button>
           </div>
 
           {loadingCustoms ? (
-            <p className="text-slate-300">Loading...</p>
+            <p className="text-center text-gray-600 py-12">Loading orders...</p>
           ) : customOrders.length === 0 ? (
-            <p className="text-slate-400">No customized orders yet.</p>
+            <p className="text-center text-gray-500 py-12">No customized orders yet.</p>
           ) : (
-            <div className="space-y-6">
-              {customOrders.map((o) => (
-                <div key={o._id} className="bg-slate-800/60 border border-slate-700 rounded-lg overflow-hidden">
-                  {/* Main Row */}
-                  <div className="p-5 flex flex-col md:flex-row md:items-start gap-6">
-                    {/* Images */}
-                    <div className="w-full md:w-40 flex-shrink-0">
-                      <div className="grid grid-cols-2 gap-2">
-                        {(o.images || []).slice(0, 4).map((img, idx) => {
-                          const fileUrl = img.startsWith('http') ? img : `${API_BASE}${img}`;
-                          const is3D = is3DModelFile(img);
-                          return (
-                            <div key={idx} className="relative w-full aspect-square rounded overflow-hidden border border-slate-600 bg-black">
-                              <img
-                                src={is3D ? modelPlaceholder : fileUrl}
-                                alt={`Image ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                              />
-                              {is3D && (
-                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold">
-                                  3D MODEL
-                                </div>
-                              )}
-                              <button
-                                onClick={() => handleDownloadImage(img)}
-                                className="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-slate-900/70 flex items-center justify-center border border-slate-600 hover:bg-slate-800"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+            <div className="space-y-8">
+              {customOrders.map((o) => {
+                const fileUrl = (img) => img.startsWith('http') ? img : `${API_BASE}${img}`;
 
-                    {/* Details & Actions */}
-                    <div className="flex-1">
-                      <div className="flex flex-col md:flex-row md:justify-between">
-                        <div>
-                          <div className="font-bold text-xl">{o.name}</div>
-                          <div className="text-sm text-slate-400">{o.email}</div>
-                          <div className="text-sm text-slate-300 mt-1">
-                            Size: Height {o.height || '?'} in • Length {o.length || '?'} in
+                return (
+                  <div key={o._id} className="bg-gray-50 rounded-2xl border border-gray-200 overflow-hidden">
+                    {/* Main Content */}
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Images Grid */}
+                        <div className="lg:col-span-1">
+                          <h3 className="text-sm font-semibold text-gray-600 mb-3">Uploaded Files</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            {(o.images || []).slice(0, 4).map((img, idx) => {
+                              const is3D = is3DModelFile(img);
+                              return (
+                                <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-300 bg-white">
+                                  <img
+                                    src={is3D ? modelPlaceholder : fileUrl(img)}
+                                    alt={`Upload ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {is3D && (
+                                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                                      <span className="text-white font-bold text-sm">3D MODEL</span>
+                                    </div>
+                                  )}
+                                  <button
+                                    onClick={() => handleDownloadImage(img)}
+                                    className="absolute bottom-2 right-2 p-2 bg-white/90 rounded-lg shadow hover:bg-white transition opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Download className="w-4 h-4 text-gray-700" />
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            Submitted: {new Date(o.createdAt).toLocaleString()}
-                          </div>
-                          {o.description && (
-                            <div className="mt-2 text-sm">
-                              <span className="text-slate-300">Notes:</span>{' '}
-                              <span className="text-slate-400">{o.description}</span>
-                            </div>
+                          {o.images.length > 4 && (
+                            <p className="text-sm text-gray-500 mt-2 text-center">+{o.images.length - 4} more files</p>
                           )}
                         </div>
 
-                        <div className="mt-4 md:mt-0 text-right">
-                          <div className="text-sm">
-                            Status:{' '}
-                            <span className={`ml-2 px-3 py-1 rounded-full text-xs ${getStatusColor(o.status)}`}>
-                              {o.status}
-                            </span>
+                        {/* Details & Actions */}
+                        <div className="lg:col-span-2 space-y-6">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-900">{o.name}</h3>
+                              <p className="text-gray-600">{o.email}</p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Submitted: {new Date(o.createdAt).toLocaleString()}
+                              </p>
+                              {o.description && (
+                                <p className="mt-3 text-gray-700">
+                                  <span className="font-medium">Notes:</span> {o.description}
+                                </p>
+                              )}
+                              <p className="mt-2 text-gray-700">
+                                <span className="font-medium">Size:</span> Height {o.height || '?'} in • Length {o.length || '?'} in
+                              </p>
+                            </div>
+
+                            <div className="text-right">
+                              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                                <Package className="w-4 h-4" />
+                                {o.status.replace('_', ' ').toUpperCase()}
+                              </div>
+                              <p className="text-sm text-gray-600 mt-2">
+                                Expected: {o.expectedDelivery ? new Date(o.expectedDelivery).toLocaleDateString() : 'Not set'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-400 mt-1">
-                            Expected: {o.expectedDelivery ? new Date(o.expectedDelivery).toLocaleDateString() : '—'}
+
+                          {/* Admin Controls */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6 border-t border-gray-200">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
+                              <input
+                                type="number"
+                                placeholder="Enter price"
+                                value={o.price ?? ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setCustomOrders(prev => prev.map(x =>
+                                    x._id === o._id ? { ...x, price: val ? Number(val) : null } : x
+                                  ));
+                                }}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery</label>
+                              <input
+                                type="date"
+                                value={o.expectedDelivery ? new Date(o.expectedDelivery).toISOString().slice(0, 10) : ''}
+                                onChange={(e) => {
+                                  setCustomOrders(prev => prev.map(x =>
+                                    x._id === o._id ? { ...x, expectedDelivery: e.target.value } : x
+                                  ));
+                                }}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                              <select
+                                value={o.status}
+                                onChange={(e) => {
+                                  setCustomOrders(prev => prev.map(x =>
+                                    x._id === o._id ? { ...x, status: e.target.value } : x
+                                  ));
+                                }}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="priced">Priced</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                              </select>
+                            </div>
+
+                            <div className="flex flex-col justify-end gap-3">
+                              <button
+                                onClick={() => handleDownloadAll(o)}
+                                className="w-full px-4 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium rounded-xl hover:shadow-lg transition flex items-center justify-center gap-2"
+                              >
+                                <Download className="w-4 h-4" />
+                                Download All
+                              </button>
+
+                              <button
+                                onClick={() => handleUpdateCustomOrder(o)}
+                                className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:shadow-lg transition"
+                              >
+                                Save & Notify
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Price / Status / Download All */}
-                      <div className="flex flex-wrap items-center gap-4 mt-5">
-                        <input
-                          type="number"
-                          placeholder="Price ₹"
-                          value={o.price ?? ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomOrders(prev => prev.map(x =>
-                              x._id === o._id ? { ...x, price: val ? Number(val) : null } : x
-                            ));
-                          }}
-                          className="w-32 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm"
-                        />
+                    {/* Expandable Section: User & Payment Details */}
+                    <div className="border-t border-gray-200 bg-gray-100/50">
+                      <button
+                        onClick={() => toggleExpand(o._id)}
+                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-200 transition"
+                      >
+                        <span className="font-semibold text-gray-800">View Delivery & Payment Details</span>
+                        {expandedOrderId === o._id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                      </button>
 
-                        <input
-                          type="date"
-                          value={o.expectedDelivery ? new Date(o.expectedDelivery).toISOString().slice(0, 10) : ''}
-                          onChange={(e) => {
-                            setCustomOrders(prev => prev.map(x =>
-                              x._id === o._id ? { ...x, expectedDelivery: e.target.value } : x
-                            ));
-                          }}
-                          className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm"
-                        />
+                      {expandedOrderId === o._id && (
+                        <div className="px-6 pb-6 pt-2 grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700">
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                              <User className="w-5 h-5 text-gray-500" />
+                              <div>
+                                <p className="font-medium">{o.name}</p>
+                              </div>
+                            </div>
 
-                        <select
-                          value={o.status}
-                          onChange={(e) => {
-                            setCustomOrders(prev => prev.map(x =>
-                              x._id === o._id ? { ...x, status: e.target.value } : x
-                            ));
-                          }}
-                          className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-sm"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="priced">Priced</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                        </select>
+                            <div className="flex items-center gap-3">
+                              <Phone className="w-5 h-5 text-gray-500" />
+                              <span>{o.phone || 'Not provided'}</span>
+                            </div>
 
-                        {/* Dedicated Download All Button */}
-                        <button
-                          onClick={() => handleDownloadAll(o)}
-                          className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-lg font-medium flex items-center gap-2 hover:shadow-lg"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download All Files
-                        </button>
+                            <div className="flex items-start gap-3">
+                              <MapPin className="w-5 h-5 text-gray-500 mt-0.5" />
+                              <div>
+                                <p>{o.address || 'No address provided'}</p>
+                                <p className="text-sm text-gray-600">
+                                  {o.city}, {o.state} - {o.pincode}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
 
-                        <button
-                          onClick={() => handleUpdateCustomOrder(o)}
-                          className="px-5 py-2 bg-gradient-to-r from-red-600 to-pink-600 rounded-lg font-medium hover:shadow-lg"
-                        >
-                          Save & Notify
-                        </button>
-                      </div>
+                          <div className="space-y-4 pt-4 md:pt-0 md:border-t-0 md:border-l border-t border-gray-300 md:pl-6">
+                            <h4 className="font-semibold text-gray-800">Payment Information</h4>
+                            <div className="grid grid-cols-1 gap-3 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Method:</span>
+                                <span className="font-medium">
+                                  {o.payment === "COD" ? "Cash on Delivery" : "Online Payment"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Status:</span>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  o.paymentStatus === "completed"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-yellow-100 text-yellow-800"
+                                }`}>
+                                  {o.paymentStatus === "completed" ? "Paid" : "Pending"}
+                                </span>
+                              </div>
+                              {o.price && (
+                                <div className="flex justify-between pt-3 border-t border-gray-300">
+                                  <span className="text-gray-600">Total Amount:</span>
+                                  <span className="text-xl font-bold text-purple-700">₹{o.price}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* Expandable User Details */}
-                 {/* Expandable User Details */}
-<div className="border-t border-slate-700">
-  <button
-    onClick={() => toggleExpand(o._id)}
-    className="w-full px-5 py-3 flex items-center justify-between hover:bg-slate-700/30 transition"
-  >
-    <span className="font-medium">User Delivery & Payment Details</span>
-    {expandedOrderId === o._id ? <ChevronUp /> : <ChevronDown />}
-  </button>
-
-  {expandedOrderId === o._id && (
-    <div className="px-5 pb-5 pt-2 space-y-4 text-sm">
-      {/* Name */}
-      <div className="flex items-center gap-3">
-        <User className="w-4 h-4 text-slate-400" />
-        <span>{o.name}</span>
-      </div>
-
-      {/* Phone */}
-      <div className="flex items-center gap-3">
-        <Phone className="w-4 h-4 text-slate-400" />
-        <span>{o.phone || 'Not provided'}</span>
-      </div>
-
-      {/* Address */}
-      <div className="flex items-start gap-3">
-        <MapPin className="w-4 h-4 text-slate-400 mt-1" />
-        <div>
-          <p>{o.address || 'No address provided'}</p>
-          <p className="text-slate-400">
-            {o.city}, {o.state} - {o.pincode}
-          </p>
-        </div>
-      </div>
-
-      {/* NEW: Payment Details */}
-      <div className="mt-4 pt-4 border-t border-slate-600">
-        <div className="font-medium text-slate-200 mb-2">Payment Information</div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-slate-400">Method:</span>
-            <span className="ml-2 font-semibold">
-              {o.payment === "COD" ? "Cash on Delivery" : "Online Payment"}
-            </span>
-          </div>
-          <div>
-            <span className="text-slate-400">Status:</span>
-            <span className={`ml-2 font-semibold px-3 py-1 rounded-full text-xs ${
-              o.paymentStatus === "completed"
-                ? "bg-green-500/20 text-green-400"
-                : "bg-yellow-500/20 text-yellow-400"
-            }`}>
-              {o.paymentStatus === "completed" ? "Paid" : "Pending"}
-            </span>
-          </div>
-        </div>
-        {o.price && (
-          <div className="mt-3">
-            <span className="text-slate-400">Amount:</span>
-            <span className="ml-2 font-bold text-lg text-white">₹{o.price}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

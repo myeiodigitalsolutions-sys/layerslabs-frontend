@@ -11,7 +11,7 @@ export default function Footer() {
           {/* Brand & Description */}
           <div className="text-center md:text-left">
             <h2 className="text-4xl sm:text-5xl font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-4">
-              Layer Labs
+              URS Printly
             </h2>
             <p className="text-gray-400 text-sm sm:text-base leading-relaxed max-w-xs mx-auto md:mx-0">
               Premium hand-painted 3D printed collectibles. Limited editions crafted for true legends.
@@ -34,11 +34,11 @@ export default function Footer() {
           <div className="text-center md:text-left">
             <h3 className="text-lg font-bold mb-5 text-white">Customer Care</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-gray-400 hover:text-pink-400 transition">Shipping Info</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-pink-400 transition">Returns & Refunds</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-pink-400 transition">Contact Us</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-pink-400 transition">FAQ</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-pink-400 transition">Terms of Service</a></li>
+              <li><a href="/shipping" className="text-gray-400 hover:text-pink-400 transition">Shipping Policy</a></li>
+              <li><a href="/privacy" className="text-gray-400 hover:text-pink-400 transition">Privacy Policy</a></li>
+              <li><a href="/contact" className="text-gray-400 hover:text-pink-400 transition">Contact Us</a></li>
+              <li><a href="/faqs" className="text-gray-400 hover:text-pink-400 transition">FAQs</a></li>
+              <li><a href="/terms" className="text-gray-400 hover:text-pink-400 transition">Terms & Conditions</a></li>
             </ul>
           </div>
 
@@ -67,7 +67,7 @@ Madurai Road, Trunelveli-627001 India</span>
             {/* Google Maps Embed - Responsive */}
          <div className="mt-6 rounded-xl overflow-hidden shadow-2xl border border-gray-800">
   <iframe
-    title="Layer Labs Location"
+    title="URS Printly Location"
     width="100%"
     height="200"
     style={{ border: 0 }}
@@ -97,7 +97,7 @@ Madurai Road, Trunelveli-627001 India</span>
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 pt-8 text-center">
           <p className="text-gray-400 text-sm">
-            © {new Date().getFullYear()} Layer Labs • Handcrafted with passion for collectors • All rights reserved
+            © {new Date().getFullYear()} URS Printly • Handcrafted with passion for collectors • All rights reserved
           </p>
         </div>
       </div>

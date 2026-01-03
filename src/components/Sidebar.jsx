@@ -17,14 +17,24 @@ export default function Sidebar({
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch categories inside Sidebar
+  // Fetch only main categories
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/categories`)
+    fetch(`${API_BASE_URL}/api/categories/main`)
       .then(res => res.json())
       .then(data => {
-        setCategories(Array.isArray(data) ? data : []);
+        // Make sure we're getting an array
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else if (data && data.mainCategories) {
+          setCategories(data.mainCategories);
+        } else {
+          setCategories([]);
+        }
       })
-      .catch(err => console.error("Failed to load categories in sidebar:", err));
+      .catch(err => {
+        console.error("Failed to load categories in sidebar:", err);
+        setCategories([]);
+      });
   }, []);
 
   // Auth state listener
@@ -79,13 +89,17 @@ export default function Sidebar({
     }
   }
 
-  // Navigate to category on home
-  function goToCategory(c) {
-    if (c) {
-      navigate('/', { state: { categoryId: c._id, categorySlug: c.slug || c.name } });
-    } else {
-      navigate('/', { state: { categoryId: null } });
-    }
+  // Navigate to category
+  function goToCategory(category) {
+    if (!category || !category._id) return;
+    
+    // Navigate to home with category filter
+    navigate("/", { 
+      state: { 
+        categoryId: category._id,
+        categoryName: category.name 
+      } 
+    });
     onClose();
   }
 
@@ -107,7 +121,7 @@ export default function Sidebar({
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between z-10">
           <Link to="/" onClick={onClose} className="text-2xl font-black bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
-            Layer Labs
+            URS Printly
           </Link>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Close">
             <X className="w-6 h-6" />
@@ -138,23 +152,27 @@ export default function Sidebar({
               </button>
 
               {categoriesOpen && (
-                <div className="mt-2 ml-6 space-y-1">
+                <div className="mt-2 space-y-1">
                   <button
-                    onClick={() => goToCategory(null)}
-                    className="block w-full text-left px-4 py-2 rounded-lg hover:bg-red-50 text-gray-700 font-medium"
+                    onClick={() => {
+                      navigate("/", { state: { categoryId: null } });
+                      onClose();
+                    }}
+                    className="block w-full text-left px-6 py-2 rounded-lg hover:bg-red-50 text-gray-700 font-medium"
                   >
-                    All Products
+                    All Categories
                   </button>
-                  {categories.length === 0 ? (
+                  
+                  {Array.isArray(categories) && categories.length === 0 ? (
                     <div className="px-4 py-2 text-sm text-gray-500">Loading...</div>
                   ) : (
-                    categories.map((c) => (
+                    categories.map((cat) => (
                       <button
-                        key={c._id}
-                        onClick={() => goToCategory(c)}
-                        className="block w-full text-left px-4 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                        key={cat._id || cat.name}
+                        onClick={() => goToCategory(cat)}
+                        className="block w-full text-left px-6 py-2 rounded-lg hover:bg-red-50 text-gray-700 font-medium"
                       >
-                        {c.name}
+                        {cat.name}
                       </button>
                     ))
                   )}
@@ -163,18 +181,13 @@ export default function Sidebar({
             </li>
 
             <li>
-              <Link to="/heroes" onClick={onClose} className="block px-4 py-3 rounded-lg hover:bg-gray-100 font-medium text-gray-900">
-                Heroes
-              </Link>
-            </li>
-            <li>
-              <Link to="/villains" onClick={onClose} className="block px-4 py-3 rounded-lg hover:bg-gray-100 font-medium text-gray-900">
-                Villains
-              </Link>
-            </li>
-            <li>
               <Link to="/customize" onClick={onClose} className="block px-4 py-3 rounded-lg hover:bg-gray-100 font-medium text-gray-900">
                 Customize 3D
+              </Link>
+            </li>
+            <li>
+              <Link to="/about" onClick={onClose} className="block px-4 py-3 rounded-lg hover:bg-gray-100 font-medium text-gray-900">
+                About us
               </Link>
             </li>
             <li>
@@ -248,7 +261,7 @@ export default function Sidebar({
 
         {/* Footer */}
         <div className="px-5 py-6 border-t border-gray-200 text-center">
-          <p className="text-sm text-gray-500">© 2025 Layer Labs. All rights reserved.</p>
+          <p className="text-sm text-gray-500">© 2025 URS Printly. All rights reserved.</p>
         </div>
       </aside>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, ShoppingCart, Layers,Mail } from 'lucide-react';
+import { Package, ShoppingCart, Layers, Mail } from 'lucide-react';
 import { auth } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -38,67 +38,70 @@ export default function AdminDashboard() {
       title: 'Products',
       description: 'Manage your product catalog',
       icon: Package,
-      gradient: 'from-blue-600 to-cyan-600',
+      gradient: 'from-blue-500 to-cyan-500',
       path: '/admin/products',
     },
     {
       title: 'Regular Orders',
       description: 'View and manage regular orders',
       icon: ShoppingCart,
-      gradient: 'from-purple-600 to-pink-600',
+      gradient: 'from-purple-500 to-pink-500',
       path: '/admin/regular-orders',
     },
     {
       title: 'Custom Orders',
       description: 'Handle customized order requests',
       icon: Layers,
-      gradient: 'from-red-600 to-orange-600',
+      gradient: 'from-orange-500 to-red-500',
       path: '/admin/custom-orders',
     },
-
     {
-  title: 'Contact Messages',
-  description: 'View messages from customers',
-  icon: Mail,
-  gradient: 'from-green-600 to-teal-600',
-  path: '/admin/contact-messages',
-},
+      title: 'Contact Messages',
+      description: 'View messages from customers',
+      icon: Mail,
+      gradient: 'from-green-500 to-teal-500',
+      path: '/admin/contact-messages',
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4">
       <div className="max-w-7xl mx-auto">
         <header className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-4">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4">
             Admin Dashboard
           </h1>
-          <p className="text-slate-400 text-lg">Layer Labs Management Portal</p>
+          <p className="text-xl text-gray-600">URS Printly Management Portal</p>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {dashboardCards.map((card) => {
             const Icon = card.icon;
             return (
               <button
                 key={card.path}
                 onClick={() => navigate(card.path)}
-                className="group relative bg-slate-900/70 border border-slate-700 rounded-3xl p-8 hover:border-slate-500 transition-all duration-300 hover:scale-105 hover:shadow-2xl"
+                className="group relative bg-white/80 backdrop-blur-lg border border-gray-200 rounded-2xl p-8 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-10 rounded-3xl transition-opacity duration-300`}></div>
-                
+                {/* Gradient overlay on hover */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}></div>
+
                 <div className="relative z-10">
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${card.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${card.gradient} p-4 flex items-center justify-center mb-6 shadow-md group-hover:scale-110 transition-transform duration-300`}>
                     <Icon className="w-8 h-8 text-white" />
                   </div>
-                  
-                  <h2 className="text-2xl font-bold mb-3 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:bg-clip-text group-hover:from-red-400 group-hover:to-pink-400 transition-all duration-300">
+
+                  <h2 className="text-2xl font-bold text-gray-800 mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-300">
                     {card.title}
                   </h2>
-                  
-                  <p className="text-slate-400 group-hover:text-slate-300 transition-colors duration-300">
+
+                  <p className="text-gray-600 group-hover:text-gray-800 transition-colors duration-300">
                     {card.description}
                   </p>
                 </div>
+
+                {/* Subtle shine effect on hover */}
+                <div className="absolute inset-0 translate-x-full group-hover:translate-x-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 -skew-x-12 transition-transform duration-700"></div>
               </button>
             );
           })}

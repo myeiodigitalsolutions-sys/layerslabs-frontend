@@ -51,11 +51,11 @@ export default function OrderPage() {
       name: "Customized 3D Product",
       price: Number(order.customized.price || 0),
       qty: 1,
-image: order.customized.images?.[0]
-  ? order.customized.images[0].startsWith("http")
-    ? order.customized.images[0]
-    : `${API_BASE_URL}${order.customized.images[0]}`
-  : null
+      image: order.customized.images?.[0]
+      ? order.customized.images[0].startsWith("http")
+        ? order.customized.images[0]
+        : `${API_BASE_URL}${order.customized.images[0]}`
+      : null
 
     }];
   }
@@ -132,6 +132,16 @@ const total = items.reduce((sum, i) => sum + i.price * i.qty, 0);
     }
   };
 
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const placeOrder = async () => {
   // Validate required fields before placing order
   const requiredFields = {
@@ -161,52 +171,146 @@ const placeOrder = async () => {
   try {
     const token = await getIdToken(auth.currentUser);
 
-    // CUSTOM ORDER FLOW
-    if (order.type === "customized") {
-      await axios.patch(
-        `${API}/api/customized/${order.customized.customOrderId}/pay`,
-        {
-          payment: profile.payment,
-          paymentStatus: profile.payment === "COD" ? "completed" : "pending",
+    if (profile.payment === "COD") {
+      if (order.type === "customized") {
+        // Existing COD flow for customized
+        await axios.patch(
+          `${API}/api/customized/${order.customized.customOrderId}/pay`,
+          {
+            payment: "COD",
+            paymentStatus: "completed",
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        localStorage.removeItem("pendingOrder");
+        alert("Custom order confirmed successfully");
+        navigate("/order-custom");
+      } else {
+        // Existing COD flow for product
+        const payload = {
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          address: profile.address,
+          state: profile.state,
+          city: profile.city,
+          pincode: profile.pincode,
+          payment: "COD",
+          product: order.product,
+        };
+        await axios.post(`${API}/api/orders`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        localStorage.removeItem("pendingOrder");
+        alert("Order placed successfully");
+        navigate("/");
+      }
+    } else { // ONLINE payment
+      let appOrderId;
+      let createRazorpayUrl;
+      let verifyUrl;
+
+      if (order.type === "customized") {
+        // For customized: Patch with pending (adapt your backend if needed)
+        await axios.patch(
+          `${API}/api/customized/${order.customized.customOrderId}/pay`,
+          {
+            payment: "ONLINE",
+            paymentStatus: "pending",
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        appOrderId = order.customized.customOrderId; // Assuming this is the ID
+        createRazorpayUrl = `${API}/api/customized/create-razorpay/${appOrderId}`; // You'll need to add this route in customized backend
+        verifyUrl = `${API}/api/customized/verify-payment/${appOrderId}`; // Same
+      } else {
+        // For product: Create order with pending
+        const payload = {
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          address: profile.address,
+          state: profile.state,
+          city: profile.city,
+          pincode: profile.pincode,
+          payment: "ONLINE",
+          product: order.product,
+        };
+        const res = await axios.post(`${API}/api/orders`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        appOrderId = res.data._id;
+        createRazorpayUrl = `${API}/api/orders/create-razorpay/${appOrderId}`;
+        verifyUrl = `${API}/api/orders/verify-payment/${appOrderId}`;
+      }
+
+      // Create Razorpay order
+      const rpRes = await axios.post(createRazorpayUrl, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { razorpayOrderId, key, amount, currency, name, email, phone } = rpRes.data;
+
+      // Load Razorpay SDK
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error("Razorpay SDK failed to load.");
+      }
+
+      // Open Razorpay checkout
+      const options = {
+        key,
+        amount,
+        currency,
+        name: "Your Company Name", // Customize
+        description: "Order Payment",
+        image: "https://your-company-logo-url", // Optional
+        order_id: razorpayOrderId,
+        handler: async function (response) {
+          try {
+            const verifyRes = await axios.post(verifyUrl, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (verifyRes.data.success) {
+              localStorage.removeItem("pendingOrder");
+              alert("Payment successful! Order confirmed.");
+              navigate(order.type === "customized" ? "/order-custom" : "/");
+            } else {
+              alert("Payment verification failed.");
+            }
+          } catch (err) {
+            alert("Verification error: " + err.message);
+          }
         },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+        prefill: {
+          name,
+          email,
+          contact: phone,
+        },
+        theme: {
+          color: "#F37254", // Customize to match your brand
+        },
+        modal: {
+          ondismiss: function () {
+            alert("Payment modal closed. Order remains pending.");
+          },
+        },
+      };
 
-      localStorage.removeItem("pendingOrder");
-      alert("Custom order confirmed successfully");
-      navigate("/order-custom");
-      return;
+      const paymentObject = new window.Razorpay(options);
+      paymentObject.open();
     }
-
-    // PRODUCT ORDER FLOW
-    const payload = {
-      name: profile.name,
-      email: profile.email,
-      phone: profile.phone,
-      address: profile.address,
-      state: profile.state,
-      city: profile.city,
-      pincode: profile.pincode,
-      payment: profile.payment,
-      product: order.product,
-    };
-
-    await axios.post(`${API}/api/orders`, payload, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    localStorage.removeItem("pendingOrder");
-    alert("Order placed successfully");
-    navigate("/");
   } catch (err) {
     console.error(err);
-    alert("Failed to place order. Please try again.");
+    alert("Failed to place order or initiate payment. Please try again.");
   } finally {
     setPlacing(false);
   }
 };
-
-
 
   if (loading || !order) {
     return (

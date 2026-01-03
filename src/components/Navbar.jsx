@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ShoppingCart, Menu, ChevronDown, User, Bell, Package, Search, X } from "lucide-react";
 import PropTypes from "prop-types";
-
 import { auth, googleProvider } from "../firebase";
 import {
   signInWithPopup,
@@ -12,9 +11,10 @@ import {
   getIdToken,
 } from "firebase/auth";
 
+import logo from "../assets/logo.jpeg"; // Update path if needed
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-// Debounce hook
 function useDebouncedValue(value, delay = 300) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -26,45 +26,48 @@ function useDebouncedValue(value, delay = 300) {
 
 const MY_ADMIN_EMAIL = "myeiokln@gmail.com";
 
-export default function Navbar({
-  onOpenSidebar = () => {},
-}) {
+export default function Navbar({ onOpenSidebar = () => {} }) {
   const [categories, setCategories] = useState([]);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const categoriesRef = useRef(null);
 
-  // SEARCH
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 250);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false); // New state for mobile search
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
+
   const navigate = useNavigate();
   const location = useLocation();
 
-  // AUTH
   const [user, setUser] = useState(null);
   const [authMenuOpen, setAuthMenuOpen] = useState(false);
   const [showLoginPanel, setShowLoginPanel] = useState(false);
 
-  // NOTIFICATIONS
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef(null);
 
-  // Fetch categories
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/categories`)
+    fetch(`${API_BASE_URL}/api/categories/main`)
       .then((res) => res.json())
       .then((data) => {
-        setCategories(Array.isArray(data) ? data : []);
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else if (data && data.mainCategories) {
+          setCategories(data.mainCategories);
+        } else {
+          setCategories([]);
+        }
       })
-      .catch((err) => console.error("Failed to load categories:", err));
-  }, [location.pathname]);
+      .catch((err) => {
+        console.error("Failed to load categories:", err);
+        setCategories([]);
+      });
+  }, []);
 
-  // Load notifications
   async function loadNotifications(userObj) {
     if (!userObj) return;
     try {
@@ -83,7 +86,6 @@ export default function Navbar({
     }
   }
 
-  // Click outside handler
   useEffect(() => {
     function handleDocClick(e) {
       if (categoriesRef.current && !categoriesRef.current.contains(e.target)) {
@@ -103,7 +105,6 @@ export default function Navbar({
     return () => document.removeEventListener("mousedown", handleDocClick);
   }, []);
 
-  // Search suggestions
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.length < 1) {
       setSuggestions([]);
@@ -122,7 +123,6 @@ export default function Navbar({
       .catch((err) => {
         if (err.name !== "AbortError") console.error("search error", err);
       });
-
     return () => controller.abort();
   }, [debouncedQuery]);
 
@@ -134,7 +134,6 @@ export default function Navbar({
     navigate(`/product/${product._id}`);
   }
 
-  // Auth listener
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(
@@ -151,7 +150,6 @@ export default function Navbar({
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const token = await getIdToken(result.user);
-
       await fetch(`${API_BASE_URL}/api/users`, {
         method: "POST",
         headers: {
@@ -165,15 +163,12 @@ export default function Navbar({
           photoURL: result.user.photoURL,
         }),
       });
-
       setShowLoginPanel(false);
       setAuthMenuOpen(true);
-
       if (result.user?.email === MY_ADMIN_EMAIL) {
         navigate("/admin");
         return;
       }
-
       loadNotifications(result.user);
     } catch (err) {
       console.error("Google login error:", err);
@@ -192,29 +187,15 @@ export default function Navbar({
     }
   }
 
-  async function markNotificationRead(token, id) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      });
-      if (res.ok) {
-        await loadNotifications(auth.currentUser);
-      }
-    } catch (err) {
-      console.error("markNotificationRead error", err);
-    }
-  }
-
   async function markAllNotificationsRead() {
     if (!user) return;
     try {
       const token = await getIdToken(auth.currentUser);
       const res = await fetch(`${API_BASE_URL}/api/notifications/mark-all-read`, {
         method: "PATCH",
-        headers: { 
-          Authorization: `Bearer ${token}`, 
-          "Content-Type": "application/json" 
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
       });
       if (res.ok) {
@@ -225,295 +206,302 @@ export default function Navbar({
     }
   }
 
-  function goToCategory(c) {
-    if (c) {
-      navigate("/", { state: { categoryId: c._id, categorySlug: c.slug || c.name } });
-    } else {
-      navigate("/", { state: { categoryId: null } });
-    }
+  function goToCategory(category) {
+    if (!category || !category._id) return;
+
+    navigate("/", {
+      state: {
+        categoryId: category._id,
+        categoryName: category.name
+      },
+      replace: false
+    });
+
     setCategoryOpen(false);
   }
 
   return (
     <nav className="fixed top-0 w-full bg-white/50 backdrop-blur-md z-40 border-b border-gray-200/50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-16 md:h-20 flex items-center justify-between">
-          {/* LEFT */}
-          <div className="flex items-center gap-2 md:gap-3">
-            <button
-              onClick={onOpenSidebar}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:bg-gray-100 md:hidden"
-              aria-label="Open menu"
-            >
-              <Menu className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
+      <div className="w-full">
+        <div className="max-w-screen-2xl mx-auto px-4 lg:px-8">
+          <div className="h-16 md:h-20 flex items-center justify-between">
 
-            <Link to="/" className="text-lg sm:text-xl md:text-2xl font-black bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent whitespace-nowrap">
-              Layer Labs
-            </Link>
-          </div>
-
-          {/* CENTER - Desktop Nav */}
-          <div className="hidden lg:flex items-center space-x-6">
-            <Link to="/" className="text-gray-700 font-medium hover:text-red-600 transition">
-              Home
-            </Link>
-
-            <div ref={categoriesRef} className="relative">
+            {/* LEFT: Menu + Logo */}
+            <div className="flex items-center gap-3">
+              {/* Mobile Menu Button */}
               <button
-                onClick={() => setCategoryOpen((s) => !s)}
-                className="flex items-center gap-2 text-gray-700 font-medium hover:text-red-600 transition"
+                onClick={onOpenSidebar}
+                className="p-2 rounded-md text-gray-700 hover:bg-gray-100 lg:hidden"
+                aria-label="Open menu"
               >
-                Categories <ChevronDown className="w-4 h-4" />
+                <Menu className="w-6 h-6" />
               </button>
 
-              {categoryOpen && (
-                <div className="absolute mt-3 w-48 bg-white shadow-lg rounded-xl border border-gray-100 py-2 z-50">
-                  <button
-                    onClick={() => goToCategory(null)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium"
-                  >
-                    All
-                  </button>
-                  {categories.map((c) => (
-                    <button
-                      key={c._id}
-                      onClick={() => goToCategory(c)}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700"
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                  {categories.length === 0 && (
-                    <div className="px-4 py-2 text-sm text-gray-500">Loading categories...</div>
-                  )}
+              {/* Logo + Brand */}
+              <Link to="/" className="flex items-center gap-3 md:gap-5">
+                {/* Much larger logo on desktop */}
+                <img 
+                  src={logo} 
+                  alt="URS Printly Logo" 
+                  className="h-10  w-10 md:h-20 md:w-20 object-contain transition-all"
+                />
+                <div className="hidden sm:flex flex-col">
+                  <span className="text-lg md:text-2xl font-black bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent leading-none">
+                    URS Printly
+                  </span>
+                  <span className="text-xs text-gray-600 font-medium -mt-1">
+                    3D Printing Solutions
+                  </span>
                 </div>
-              )}
+                {/* Show only logo on very small screens */}
+                <span className="sm:hidden text-lg font-black bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
+                  URS Printly
+                </span>
+              </Link>
             </div>
 
-            <Link to="/customize" className="text-gray-700 font-medium hover:text-red-600 transition">
-              Customize 3D
-            </Link>
-            <Link to="/about" className="text-gray-700 font-medium hover:text-red-600 transition">
-              About us
-            </Link>
-            <Link to="/contact" className="text-gray-700 font-medium hover:text-red-600 transition">
-              Contact
-            </Link>
+            {/* CENTER: Desktop Links */}
+            <div className="hidden lg:flex items-center space-x-8">
+              <Link to="/" className="text-gray-700 font-medium hover:text-red-600 transition">
+                Home
+              </Link>
+              <div ref={categoriesRef} className="relative">
+                <button
+                  onClick={() => setCategoryOpen((s) => !s)}
+                  className="flex items-center gap-2 text-gray-700 font-medium hover:text-red-600 transition"
+                >
+                  Categories <ChevronDown className="w-4 h-4" />
+                </button>
+                {categoryOpen && categories.length > 0 && (
+                  <div className="absolute top-full mt-3 left-1/2 -translate-x-1/2 w-48 bg-white shadow-xl rounded-xl border border-gray-100 py-3 z-50">
+                    <button
+                      onClick={() => {
+                        navigate("/", { state: { categoryId: null }, replace: true });
+                        setCategoryOpen(false);
+                      }}
+                      className="w-full text-left px-5 py-2.5 hover:bg-gray-50 text-gray-700 font-medium"
+                    >
+                      All Categories
+                    </button>
+                    {categories.map((cat) => (
+                      <button
+                        key={cat._id}
+                        onClick={() => goToCategory(cat)}
+                        className="w-full text-left px-5 py-2.5 hover:bg-gray-50 text-gray-700"
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Link to="/customize" className="text-gray-700 font-medium hover:text-red-600 transition">
+                Customize 3D
+              </Link>
+              <Link to="/about" className="text-gray-700 font-medium hover:text-red-600 transition">
+                About us
+              </Link>
+              <Link to="/contact" className="text-gray-700 font-medium hover:text-red-600 transition">
+                Contact
+              </Link>
+            </div>
+
+            {/* RIGHT: Icons & Auth */}
+            <div className="flex items-center gap-3 md:gap-4">
+              {/* Mobile Search Toggle */}
+              <button
+                onClick={() => setSearchOpen(!searchOpen)}
+                className="p-2 rounded-md hover:bg-gray-100 lg:hidden"
+              >
+                {searchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+              </button>
+
+              {/* Desktop Search */}
+              <div ref={searchRef} className="hidden lg:block relative">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => suggestions.length && setShowSuggestions(true)}
+                  placeholder="Search products..."
+                  className="w-64 pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-300 text-sm"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="absolute top-full mt-2 w-full bg-white border border-gray-100 rounded-xl shadow-xl max-h-72 overflow-auto z-50">
+                    {suggestions.map((p) => (
+                      <li
+                        key={p._id}
+                        onMouseDown={() => handleSelectSuggestion(p)}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer"
+                      >
+                        {p.images?.[0] ? (
+                          <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center text-xs">No</div>
+                        )}
+                        <span className="text-sm text-gray-800">{p.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Cart */}
+              <Link to="/cart" className="p-2 rounded-md hover:bg-gray-100">
+                <ShoppingCart className="w-5 h-5 md:w-6 md:h-6" />
+              </Link>
+
+              {/* Notifications */}
+              <div ref={notifRef} className="relative">
+                <button
+                  onClick={async () => {
+                    setNotifOpen((s) => !s);
+                    if (!notifOpen && user) await loadNotifications(auth.currentUser);
+                  }}
+                  className="p-2 rounded-md hover:bg-gray-100 relative"
+                >
+                  <Bell className="w-5 h-5 md:w-6 md:h-6 text-gray-600" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="absolute right-0 mt-3 w-80 bg-white shadow-2xl rounded-xl border border-gray-100 z-50 overflow-hidden">
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                      <h3 className="font-semibold">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllNotificationsRead} className="text-xs text-red-600 hover:underline">
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No notifications</p>
+                      ) : (
+                        notifications.map((n) => (
+                          <div key={n._id} className={`p-4 border-b border-gray-50 ${!n.read ? 'bg-red-50' : ''}`}>
+                            <p className="font-medium text-sm">{n.title}</p>
+                            <p className="text-xs text-gray-600 mt-1">{n.message}</p>
+                            <p className="text-xs text-gray-400 mt-2">{new Date(n.createdAt).toLocaleString()}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* User/Auth */}
+              <div className="relative auth-area">
+                {!user ? (
+                  <button
+                    onClick={() => setShowLoginPanel((s) => !s)}
+                    className="hidden sm:block px-4 py-2 text-sm font-medium text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition"
+                  >
+                    Login
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setAuthMenuOpen((s) => !s)}
+                    className="p-1 rounded-full hover:bg-gray-100 transition"
+                  >
+                    {user.photoURL ? (
+                      <img 
+                        src={user.photoURL} 
+                        alt="Profile" 
+                        className="w-9 h-9 rounded-full object-cover border-2 border-gray-200" 
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-100 to-pink-100 flex items-center justify-center border-2 border-gray-200">
+                        <User className="w-5 h-5 text-gray-600" />
+                      </div>
+                    )}
+                  </button>
+                )}
+
+                {/* Login Dropdown */}
+                {showLoginPanel && !user && (
+                  <div className="absolute right-0 mt-3 w-56 bg-white shadow-xl rounded-xl border border-gray-100 p-4 z-50">
+                    <button
+                      onClick={handleGoogleLogin}
+                      className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                    >
+                      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                      <span className="text-sm font-medium">Continue with Google</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* User Menu */}
+                {authMenuOpen && user && (
+                  <div className="absolute right-0 mt-3 w-56 bg-white shadow-xl rounded-xl border border-gray-100 py-2 z-50">
+                    <button
+                      onClick={() => { setAuthMenuOpen(false); navigate("/profile"); }}
+                      className="w-full px-5 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+                    >
+                      <User className="w-5 h-5" />
+                      <span>Profile</span>
+                    </button>
+                    <button
+                      onClick={() => { setAuthMenuOpen(false); navigate("/track-orders"); }}
+                      className="w-full px-5 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+                    >
+                      <Package className="w-5 h-5 text-red-600" />
+                      <span>Track Orders</span>
+                    </button>
+                    <hr className="my-2 border-gray-200" />
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-5 py-3 text-left hover:bg-gray-50 text-red-600 flex items-center gap-3"
+                    >
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* RIGHT */}
-          <div className="flex items-center gap-2 md:gap-4">
-            {/* Desktop Search - Always visible on desktop */}
-            <div ref={searchRef} className="hidden md:block relative w-64">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => {
-                  if (suggestions.length) setShowSuggestions(true);
-                }}
-                placeholder="Search..."
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 text-black placeholder-gray-400 text-sm"
-              />
-
+          {/* Mobile Search Bar (expanded) */}
+          {searchOpen && (
+            <div ref={searchRef} className="lg:hidden pb-4 px-4 -mx-4 bg-white border-t border-gray-100">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search products..."
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-300 text-base"
+                  autoFocus
+                />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
+              </div>
               {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-100 rounded-lg shadow-lg max-h-64 overflow-auto z-50">
+                <ul className="mt-3 bg-white rounded-xl shadow-xl border border-gray-100 max-h-64 overflow-y-auto">
                   {suggestions.map((p) => (
                     <li
                       key={p._id}
                       onMouseDown={() => handleSelectSuggestion(p)}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 cursor-pointer"
                     >
-                      {p.images && p.images[0] ? (
-                        <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-md object-cover" />
+                      {p.images?.[0] ? (
+                        <img src={p.images[0]} alt={p.name} className="w-12 h-12 rounded object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-500">No</div>
+                        <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-xs">No</div>
                       )}
-                      <div className="text-sm text-black">{p.name}</div>
+                      <span className="font-medium">{p.name}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-
-            {/* Mobile Search Icon - Only visible on mobile */}
-            <button
-              onClick={() => setSearchOpen(!searchOpen)}
-              className="md:hidden p-2 rounded-md hover:bg-gray-100"
-              aria-label="Search"
-            >
-              {searchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-            </button>
-
-            <Link to="/cart" className="flex items-center gap-1 md:gap-2 p-2 md:p-0 rounded-md hover:bg-gray-100 md:hover:bg-transparent">
-              <ShoppingCart className="w-5 h-5 md:w-6 md:h-6" />
-              <span className="hidden lg:block">Cart</span>
-            </Link>
-
-            {/* Notifications */}
-            <div ref={notifRef} className="relative">
-              <button
-                onClick={async () => {
-                  setNotifOpen((s) => !s);
-                  if (!notifOpen && user) await loadNotifications(auth.currentUser);
-                }}
-                className="relative p-2 rounded-md hover:bg-gray-100"
-                title="Notifications"
-              >
-                <Bell className="w-5 h-5 md:w-6 md:h-6 text-gray-600" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold rounded-full w-4 h-4 md:w-5 md:h-5 flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {notifOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white shadow-lg border border-gray-100 rounded-lg z-50 p-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-semibold">Notifications</div>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={markAllNotificationsRead}
-                        className="text-xs text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-                  {notifications.length === 0 ? (
-                    <div className="text-xs text-gray-500">No notifications</div>
-                  ) : (
-                    <ul className="max-h-64 overflow-auto space-y-2">
-                      {notifications.map((n) => (
-                        <li key={n._id} className={`p-2 rounded-md ${n.read ? "bg-gray-50" : "bg-red-50"}`}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <div className="text-sm font-medium">{n.title}</div>
-                              <div className="text-xs text-gray-600">{n.message}</div>
-                              <div className="text-[10px] text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString()}</div>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* AUTH */}
-            <div className="relative auth-area">
-              {!user ? (
-                <>
-                  <button
-                    onClick={() => setShowLoginPanel((s) => !s)}
-                    className="px-2 md:px-3 py-1.5 md:py-2 text-sm rounded-md border border-gray-200 hover:bg-gray-50 text-red-600"
-                  >
-                    Login
-                  </button>
-
-                  {showLoginPanel && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg border border-gray-100 rounded-lg z-50 p-3">
-                      <button
-                        onClick={handleGoogleLogin}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-md border hover:bg-gray-50"
-                      >
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="google" className="w-5 h-5" />
-                        <span className="text-sm text-blue-800">Continue with Google</span>
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setAuthMenuOpen((s) => !s)}
-                    className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-50"
-                  >
-                    {user.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || "user"} className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                        <User className="w-4 h-4 text-gray-600" />
-                      </div>
-                    )}
-                  </button>
-
-                  {authMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg border border-gray-100 rounded-lg z-50 py-2">
-                      <button
-                        onClick={() => {
-                          setAuthMenuOpen(false);
-                          navigate("/profile");
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3"
-                      >
-                        <User className="w-5 h-5" />
-                        Profile
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          setAuthMenuOpen(false);
-                          navigate("/track-orders");
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-3"
-                      >
-                        <Package className="w-5 h-5 text-red-600" />
-                        Track Orders
-                      </button>
-
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600 flex items-center gap-3"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          )}
         </div>
-
-        {/* Mobile Search Bar - Expands below navbar when icon clicked */}
-        {searchOpen && (
-          <div ref={searchRef} className="md:hidden pb-4 relative">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => {
-                if (suggestions.length) setShowSuggestions(true);
-              }}
-              placeholder="Search products..."
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-300 text-black placeholder-gray-400 text-sm"
-              autoFocus
-            />
-
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className="absolute left-0 right-0 mt-2 bg-white border border-gray-100 rounded-lg shadow-lg max-h-64 overflow-auto z-50">
-                {suggestions.map((p) => (
-                  <li
-                    key={p._id}
-                    onMouseDown={() => handleSelectSuggestion(p)}
-                    className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                  >
-                    {p.images && p.images[0] ? (
-                      <img src={p.images[0]} alt={p.name} className="w-10 h-10 rounded-md object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-500">No</div>
-                    )}
-                    <div className="text-sm text-black">{p.name}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       </div>
     </nav>
   );

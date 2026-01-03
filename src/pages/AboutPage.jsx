@@ -7,7 +7,7 @@ export default function AboutPage() {
         {/* Hero Section */}
         <section className="text-center py-16 sm:py-24">
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black mb-6 bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent">
-            About Layer Labs
+            About URS Printly
           </h1>
           <p className="text-xl sm:text-2xl text-gray-700 max-w-4xl mx-auto">
             Crafting premium 3D printed collectibles with passion, precision, and innovation.
@@ -19,7 +19,7 @@ export default function AboutPage() {
           <div>
             <h2 className="text-4xl sm:text-5xl font-black mb-6">Our Story</h2>
             <p className="text-lg text-gray-600 leading-relaxed mb-6">
-              Founded in 2025, Layer Labs began as a dream to bring legendary characters to life through the magic of 3D printing and hand-painting artistry.
+              Founded in 2025, URS Printly began as a dream to bring legendary characters to life through the magic of 3D printing and hand-painting artistry.
             </p>
             <p className="text-lg text-gray-600 leading-relaxed mb-6">
               What started as a small workshop has grown into a dedicated team of designers, engineers, and artists obsessed with creating limited-edition collectibles that collectors truly cherish.
@@ -31,7 +31,7 @@ export default function AboutPage() {
           <div className="order-first lg:order-last">
             <img
               src="https://via.placeholder.com/800x600?text=Layer+Labs+Workshop"
-              alt="Layer Labs workshop"
+              alt="URS Printly workshop"
               className="rounded-3xl shadow-2xl w-full object-cover"
             />
           </div>
@@ -93,7 +93,7 @@ export default function AboutPage() {
             <div className="rounded-3xl overflow-hidden shadow-2xl">
               {/* Replace with your actual embed URL */}
               <iframe
-                title="Layer Labs Location"
+                title="URS Printly Location"
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3945.6789012345!2d77.709123456789!3d8.7362107123456!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2ef1c59ccb6beccd%3A0x2038d4e6efcf5778!2sE%20I%20O%20Digital%20Solutions!5e0!3m2!1sen!2sin!4v1737000000000"
                 width="100%"
                 height="400"

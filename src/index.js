@@ -19,6 +19,14 @@ import Footer from './components/Footer';  // <-- Add this import
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 
+
+//policy pages
+import PrivacyPolicyPage from'./pages/policy/PrivacyPolicy';
+import TermsAndConditionsPage from './pages/policy/TermsAndConditionsPage';
+import FAQsPage from './pages/policy/faqs';
+import ShippingPolicyPage from './pages/policy/Shippingpolicy';
+
+
 // Admin pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Products from './pages/admin/Products';
@@ -86,6 +94,11 @@ root.render(
         <Route path="/cart" element={<PublicLayout><CartPage /></PublicLayout>} />
 <Route path="/about" element={<PublicLayout><AboutPage /></PublicLayout>} />
 <Route path="/contact" element={<PublicLayout><ContactPage /></PublicLayout>} />
+
+<Route path="/privacy" element={<PublicLayout><PrivacyPolicyPage /></PublicLayout>} />
+<Route path="/terms" element={<PublicLayout><TermsAndConditionsPage /></PublicLayout>} />
+<Route path="/faqs" element={<PublicLayout><FAQsPage /></PublicLayout>} />
+<Route path="/shipping" element={<PublicLayout><ShippingPolicyPage /></PublicLayout>} />
 
         {/* ADMIN ROUTES - No Navbar/Sidebar */}
         <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />

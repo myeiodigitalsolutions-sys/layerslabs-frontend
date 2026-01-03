@@ -248,9 +248,24 @@ export default function ProductPage() {
             {/* Right: Product Info */}
             <div className="flex flex-col justify-center">
               <div className="bg-white/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl sm:shadow-2xl border border-gray-100">
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-4 sm:mb-6 leading-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-2 leading-tight">
                   {product.name}
                 </h1>
+
+                {/* NEW: Category & Subcategory Display */}
+                <div className="mb-4 sm:mb-6">
+                  <p className="text-sm sm:text-base md:text-lg text-gray-600 font-medium">
+                    {product.category?.name || 'Uncategorized'}
+                    {product.subcategory?.name && (
+                      <>
+                        {' > '}
+                        <span className="text-red-600 font-semibold">
+                          {product.subcategory.name}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
 
                 {/* Rating */}
                 <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -361,7 +376,7 @@ export default function ProductPage() {
       <footer className="bg-gray-900 text-white py-12 sm:py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-black bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent mb-3 sm:mb-4">
-            Layer Labs
+            URS Printly
           </h2>
           <p className="text-gray-400 text-sm sm:text-base md:text-lg">
             © 2025 • Crafted for True Collectors
