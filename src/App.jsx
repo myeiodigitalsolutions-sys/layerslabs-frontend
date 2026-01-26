@@ -4,8 +4,10 @@ import axios from 'axios';
 import Navbar from './components/Navbar.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import { Link } from 'react-router-dom';
-import { Star, Loader2, Filter, X, ChevronDown } from 'lucide-react';
+import { Star, Loader2, Filter, X, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import banner1 from './assets/banner1.jpg';
+import banner2 from './assets/banner2.jpg';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -33,6 +35,10 @@ export default function App() {
 
   const featuredSectionRef = useRef(null);
   const showcaseSectionRef = useRef(null);
+
+  // Banner carousel state
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const banners = [banner1, banner2];
 
   // Fetch categories
   useEffect(() => {
@@ -149,6 +155,28 @@ export default function App() {
     setIsFilterOpen(false);
   };
 
+  // Banner carousel functions
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % banners.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length);
+  };
+
+  const goToSlide = (index) => {
+    setCurrentSlide(index);
+  };
+
+  // Auto-slide every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const scrollToFeatured = () => {
     featuredSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -182,23 +210,74 @@ export default function App() {
         </div>
       )}
 
-      {/* Hero Section */}
-      <section className="pt-20 sm:pt-24 pb-12 sm:pb-16 md:pb-20 bg-gradient-to-br from-red-50 via-pink-50 to-white overflow-hidden relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-gray-900 mb-4 sm:mb-6 leading-tight">
+      {/* Hero Section with Banner Carousel */}
+      <section className="relative pt-20 sm:pt-24 pb-12 sm:pb-16 md:pb-20 overflow-hidden">
+        {/* Banner Carousel Background */}
+        <div className="absolute inset-0 z-0">
+          {banners.map((banner, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'
+                }`}
+            >
+              <img
+                src={banner}
+                alt={`Banner ${index + 1}`}
+                className="w-full h-full object-cover object-center"
+              />
+              {/* Overlay for better text readability */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60"></div>
+            </div>
+          ))}
+        </div>
+
+        {/* Navigation Arrows */}
+        <button
+          onClick={prevSlide}
+          className="absolute left-2 sm:left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white p-2 sm:p-3 md:p-4 rounded-full transition-all duration-300 hover:scale-110 group"
+          aria-label="Previous slide"
+        >
+          <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 group-hover:scale-110 transition-transform" />
+        </button>
+        <button
+          onClick={nextSlide}
+          className="absolute right-2 sm:right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white p-2 sm:p-3 md:p-4 rounded-full transition-all duration-300 hover:scale-110 group"
+          aria-label="Next slide"
+        >
+          <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 group-hover:scale-110 transition-transform" />
+        </button>
+
+        {/* Dot Indicators */}
+        <div className="absolute bottom-4 sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-2 sm:gap-3">
+          {banners.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={`transition-all duration-300 rounded-full ${index === currentSlide
+                ? 'w-8 sm:w-10 md:w-12 h-2 sm:h-2.5 md:h-3 bg-white'
+                : 'w-2 sm:w-2.5 md:w-3 h-2 sm:h-2.5 md:h-3 bg-white/50 hover:bg-white/75'
+                }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Content Overlay */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white mb-4 sm:mb-6 leading-tight drop-shadow-2xl">
             LEGENDS
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-pink-600">
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-pink-400 drop-shadow-lg">
               IN 3D
             </span>
           </h1>
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 sm:mb-10 md:mb-12 max-w-4xl mx-auto font-light px-4">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-white mb-8 sm:mb-10 md:mb-12 max-w-4xl mx-auto font-light px-4 drop-shadow-lg">
             Premium hand-painted 3D printed collectibles • Limited editions
           </p>
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center px-4">
             <button onClick={scrollToFeatured} className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:shadow-2xl hover:scale-105 transition transform">
               Shop Collection
             </button>
-            <button onClick={scrollToShowcase} className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 border-2 border-red-600 text-red-600 font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:bg-red-50 transition">
+            <button onClick={scrollToShowcase} className="px-8 py-4 sm:px-10 sm:py-4 md:px-12 md:py-5 border-2 border-white text-white font-bold text-base sm:text-lg md:text-xl rounded-xl sm:rounded-2xl hover:bg-white/10 backdrop-blur-sm transition">
               Watch Showcase
             </button>
           </div>
@@ -316,12 +395,11 @@ export default function App() {
                 return (
                   <div key={product._id} className="group relative bg-white/70 backdrop-blur-xl rounded-xl sm:rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 hover:border-red-200">
                     {product.tag && (
-                      <div className={`absolute top-2 left-2 sm:top-3 sm:left-3 z-10 px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-bold text-white shadow-lg ${
-                        product.tag === 'Sale' ? 'bg-gradient-to-r from-red-500 to-pink-600' :
+                      <div className={`absolute top-2 left-2 sm:top-3 sm:left-3 z-10 px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-bold text-white shadow-lg ${product.tag === 'Sale' ? 'bg-gradient-to-r from-red-500 to-pink-600' :
                         product.tag === 'New' ? 'bg-gradient-to-r from-emerald-500 to-teal-600' :
-                        product.tag === 'Best Seller' ? 'bg-gradient-to-r from-yellow-500 to-orange-600' :
-                        'bg-gradient-to-r from-red-600 to-pink-600'
-                      }`}>
+                          product.tag === 'Best Seller' ? 'bg-gradient-to-r from-yellow-500 to-orange-600' :
+                            'bg-gradient-to-r from-red-600 to-pink-600'
+                        }`}>
                         {product.tag}
                       </div>
                     )}
