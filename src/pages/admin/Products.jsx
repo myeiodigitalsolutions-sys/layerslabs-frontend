@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  Trash2, Edit2, PlusCircle, X, ArrowLeft, ChevronDown, 
+import {
+  Trash2, Edit2, PlusCircle, X, ArrowLeft, ChevronDown,
   ChevronUp, ChevronRight, ChevronLeft, GripVertical, Save,
   MoveUp, MoveDown, List
 } from 'lucide-react';
@@ -33,15 +33,18 @@ export default function Products() {
     features: '',
     category: '',
     subcategory: '',
+    customNameFields: [],
+    allowCustomImage: false,
+    productTypes: [],
   });
   const [existingImages, setExistingImages] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  
+
   // Category management
-  const [catForm, setCatForm] = useState({ 
-    name: '', 
-    slug: '', 
-    description: '', 
+  const [catForm, setCatForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
     isMain: true,
     order: 0,
     subcategories: [{ name: '', slug: '', description: '' }]
@@ -52,7 +55,7 @@ export default function Products() {
   const [tempCategories, setTempCategories] = useState([]);
   const dragItem = useRef();
   const dragOverItem = useRef();
-  
+
   // Filters
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubcategory, setFilterSubcategory] = useState('');
@@ -114,17 +117,17 @@ export default function Products() {
     try {
       let url = `${API_BASE}/api/products`;
       const params = new URLSearchParams();
-      
+
       if (subcategory) {
         params.append('subcategory', subcategory);
       } else if (category) {
         params.append('category', category);
       }
-      
+
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
-      
+
       const res = await axios.get(url);
       setProducts(res.data || []);
     } catch (err) {
@@ -156,6 +159,9 @@ export default function Products() {
       features: '',
       category: '',
       subcategory: '',
+      customNameFields: [],
+      allowCustomImage: false,
+      productTypes: [],
     });
     setExistingImages([]);
     setSelectedFiles([]);
@@ -183,6 +189,38 @@ export default function Products() {
     setExistingImages((prev) => prev.filter((url) => url !== urlToRemove));
   };
 
+  const handleRemoveNewImage = (indexToRemove) => {
+    setSelectedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const moveExistingImageUp = (index) => {
+    if (index === 0) return;
+    const updated = [...existingImages];
+    [updated[index], updated[index - 1]] = [updated[index - 1], updated[index]];
+    setExistingImages(updated);
+  };
+
+  const moveExistingImageDown = (index) => {
+    if (index === existingImages.length - 1) return;
+    const updated = [...existingImages];
+    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    setExistingImages(updated);
+  };
+
+  const moveNewImageUp = (index) => {
+    if (index === 0) return;
+    const updated = [...selectedFiles];
+    [updated[index], updated[index - 1]] = [updated[index - 1], updated[index]];
+    setSelectedFiles(updated);
+  };
+
+  const moveNewImageDown = (index) => {
+    if (index === selectedFiles.length - 1) return;
+    const updated = [...selectedFiles];
+    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    setSelectedFiles(updated);
+  };
+
   const handleEdit = async (product) => {
     setEditingId(product._id);
     setForm({
@@ -195,10 +233,13 @@ export default function Products() {
       features: (product.features || []).join(', '),
       category: product.category?._id || product.category || '',
       subcategory: product.subcategory?._id || product.subcategory || '',
+      customNameFields: Array.isArray(product.customNameFields) ? product.customNameFields : [],
+      allowCustomImage: product.allowCustomImage || false,
+      productTypes: Array.isArray(product.productTypes) ? product.productTypes : [],
     });
     setExistingImages(product.images || []);
     setSelectedFiles([]);
-    
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -220,6 +261,24 @@ export default function Products() {
     setSaving(true);
     setError('');
     setSuccessMsg('');
+
+    // Validate custom name fields
+    if (form.customNameFields && form.customNameFields.length > 0) {
+      for (let i = 0; i < form.customNameFields.length; i++) {
+        const field = form.customNameFields[i];
+        if (!field.label || !field.label.trim()) {
+          setError(`Custom field ${i + 1}: Label is required`);
+          setSaving(false);
+          return;
+        }
+        if (!field.maxLength || field.maxLength < 1 || field.maxLength > 100) {
+          setError(`Custom field ${i + 1} (${field.label}): Character limit is required (1-100)`);
+          setSaving(false);
+          return;
+        }
+      }
+    }
+
     try {
       const headers = await getAuthHeaders();
 
@@ -235,6 +294,9 @@ export default function Products() {
         subcategory: form.subcategory || '',
         existingImages: existingImages,
         images: selectedFiles,
+        customNameFields: form.customNameFields,
+        allowCustomImage: form.allowCustomImage,
+        productTypes: form.productTypes,
       };
 
       if (editingId) {
@@ -259,12 +321,94 @@ export default function Products() {
     }
   };
 
+  // Custom Name Fields Management
+  const addCustomNameField = () => {
+    setForm(prev => ({
+      ...prev,
+      customNameFields: [...prev.customNameFields, { label: '', placeholder: '', maxLength: '' }]
+    }));
+  };
+
+  const removeCustomNameField = (index) => {
+    setForm(prev => ({
+      ...prev,
+      customNameFields: prev.customNameFields.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateCustomNameField = (index, field, value) => {
+    setForm(prev => {
+      const updated = [...prev.customNameFields];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, customNameFields: updated };
+    });
+  };
+
+  const moveCustomNameFieldUp = (index) => {
+    if (index === 0) return;
+    setForm(prev => {
+      const updated = [...prev.customNameFields];
+      [updated[index], updated[index - 1]] = [updated[index - 1], updated[index]];
+      return { ...prev, customNameFields: updated };
+    });
+  };
+
+  const moveCustomNameFieldDown = (index) => {
+    if (index === form.customNameFields.length - 1) return;
+    setForm(prev => {
+      const updated = [...prev.customNameFields];
+      [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+      return { ...prev, customNameFields: updated };
+    });
+  };
+
+  // Product Types Management
+  const addProductType = () => {
+    setForm(prev => ({
+      ...prev,
+      productTypes: [...prev.productTypes, { label: '', additionalPrice: '' }]
+    }));
+  };
+
+  const removeProductType = (index) => {
+    setForm(prev => ({
+      ...prev,
+      productTypes: prev.productTypes.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateProductType = (index, field, value) => {
+    setForm(prev => {
+      const updated = [...prev.productTypes];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, productTypes: updated };
+    });
+  };
+
+  const moveProductTypeUp = (index) => {
+    if (index === 0) return;
+    setForm(prev => {
+      const updated = [...prev.productTypes];
+      [updated[index], updated[index - 1]] = [updated[index - 1], updated[index]];
+      return { ...prev, productTypes: updated };
+    });
+  };
+
+  const moveProductTypeDown = (index) => {
+    if (index === form.productTypes.length - 1) return;
+    setForm(prev => {
+      const updated = [...prev.productTypes];
+      [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+      return { ...prev, productTypes: updated };
+    });
+  };
+
   // Category form handlers
   const handleCatChange = (e) => {
     const { name, value } = e.target;
-    setCatForm((p) => ({ 
-      ...p, 
-      [name]: value 
+    setCatForm((p) => ({
+      ...p,
+      [name]: value
     }));
   };
 
@@ -291,7 +435,7 @@ export default function Products() {
     if (!catForm.name) return setError('Category name required');
     try {
       const headers = await getAuthHeaders();
-      
+
       // Prepare category data
       const categoryData = {
         name: catForm.name,
@@ -301,7 +445,7 @@ export default function Products() {
         order: catForm.order || 0,
         subcategories: catForm.isMain ? catForm.subcategories.filter(sub => sub.name.trim()) : []
       };
-      
+
       const res = await axios.post(`${API_BASE}/api/categories`, categoryData, { headers });
       setSuccessMsg(`Category "${res.data.name}" created with ${categoryData.subcategories.length} subcategories`);
       resetCatForm();
@@ -314,10 +458,10 @@ export default function Products() {
   };
 
   const resetCatForm = () => {
-    setCatForm({ 
-      name: '', 
-      slug: '', 
-      description: '', 
+    setCatForm({
+      name: '',
+      slug: '',
+      description: '',
       isMain: true,
       order: 0,
       subcategories: [{ name: '', slug: '', description: '' }]
@@ -342,54 +486,54 @@ export default function Products() {
     setShowCategoryForm(true);
   };
 
-const handleUpdateCategory = async (e) => {
-  e.preventDefault();
-  if (!catForm.name) return setError('Category name required');
-  try {
-    const headers = await getAuthHeaders();
-    const categoryData = {
-      name: catForm.name,
-      slug: catForm.slug,
-      description: catForm.description,
-      isMain: catForm.isMain,
-      order: catForm.order || 0,
-      // Include subcategories when updating
-      subcategories: catForm.isMain ? catForm.subcategories.filter(sub => sub.name.trim()) : []
-    };
-    
-    await axios.put(`${API_BASE}/api/categories/${editingCategory}`, categoryData, { headers });
-    setSuccessMsg(`Category "${catForm.name}" updated with ${categoryData.subcategories.length} subcategories`);
-    resetCatForm();
-    setShowCategoryForm(false);
-    fetchCategories();
-  } catch (err) {
-    console.error('Category update error', err);
-    setError(err?.response?.data?.message || 'Failed to update category');
-  }
-};
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!catForm.name) return setError('Category name required');
+    try {
+      const headers = await getAuthHeaders();
+      const categoryData = {
+        name: catForm.name,
+        slug: catForm.slug,
+        description: catForm.description,
+        isMain: catForm.isMain,
+        order: catForm.order || 0,
+        // Include subcategories when updating
+        subcategories: catForm.isMain ? catForm.subcategories.filter(sub => sub.name.trim()) : []
+      };
+
+      await axios.put(`${API_BASE}/api/categories/${editingCategory}`, categoryData, { headers });
+      setSuccessMsg(`Category "${catForm.name}" updated with ${categoryData.subcategories.length} subcategories`);
+      resetCatForm();
+      setShowCategoryForm(false);
+      fetchCategories();
+    } catch (err) {
+      console.error('Category update error', err);
+      setError(err?.response?.data?.message || 'Failed to update category');
+    }
+  };
 
 
 
-const handleAddSubcategory = async (parentCategoryId) => {
-  const subName = prompt('Enter subcategory name:');
-  if (!subName) return;
-  
-  try {
-    const headers = await getAuthHeaders();
-    const subcategoryData = {
-      name: subName,
-      isMain: false,
-      parent: parentCategoryId
-    };
-    
-    await axios.post(`${API_BASE}/api/categories/sub`, subcategoryData, { headers });
-    setSuccessMsg(`Subcategory "${subName}" added`);
-    fetchCategories();
-  } catch (err) {
-    console.error('Add subcategory error', err);
-    setError(err?.response?.data?.message || 'Failed to add subcategory');
-  }
-};
+  const handleAddSubcategory = async (parentCategoryId) => {
+    const subName = prompt('Enter subcategory name:');
+    if (!subName) return;
+
+    try {
+      const headers = await getAuthHeaders();
+      const subcategoryData = {
+        name: subName,
+        isMain: false,
+        parent: parentCategoryId
+      };
+
+      await axios.post(`${API_BASE}/api/categories/sub`, subcategoryData, { headers });
+      setSuccessMsg(`Subcategory "${subName}" added`);
+      fetchCategories();
+    } catch (err) {
+      console.error('Add subcategory error', err);
+      setError(err?.response?.data?.message || 'Failed to add subcategory');
+    }
+  };
 
   // Handle delete main category
   const handleDeleteCategory = async (id, name) => {
@@ -434,26 +578,26 @@ const handleAddSubcategory = async (parentCategoryId) => {
         _id: cat._id,
         order: index
       }));
-      
+
       // Also update subcategory orders
       const allUpdates = [];
       tempCategories.forEach((cat, catIndex) => {
         allUpdates.push({ _id: cat._id, order: catIndex });
         if (cat.subcategories?.length > 0) {
           cat.subcategories.forEach((sub, subIndex) => {
-            allUpdates.push({ 
-              _id: sub._id, 
-              subcategoryOrder: subIndex 
+            allUpdates.push({
+              _id: sub._id,
+              subcategoryOrder: subIndex
             });
           });
         }
       });
-      
-      await axios.put(`${API_BASE}/api/categories/update-order/bulk`, 
-        { categories: allUpdates }, 
+
+      await axios.put(`${API_BASE}/api/categories/update-order/bulk`,
+        { categories: allUpdates },
         { headers }
       );
-      
+
       setSuccessMsg('Category order updated');
       setIsReordering(false);
       fetchCategories();
@@ -586,7 +730,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                     className="w-full rounded-xl bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm text-slate-300">Slug</label>
                   <input
@@ -597,7 +741,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                     className="w-full rounded-xl bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
                   />
                 </div>
-                
+
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-sm text-slate-300">Description</label>
                   <textarea
@@ -609,7 +753,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                     className="w-full rounded-xl bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm text-slate-300">Order</label>
                   <input
@@ -621,7 +765,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                     className="w-full rounded-xl bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
                   />
                 </div>
-                
+
                 {!editingCategory && (
                   <div className="space-y-2">
                     <label className="text-sm text-slate-300">Type</label>
@@ -650,7 +794,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                   </div>
                 )}
               </div>
-              
+
               {/* Subcategories for new main category */}
               {catForm.isMain && !editingCategory && (
                 <div className="mb-4">
@@ -664,7 +808,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                       + Add Subcategory
                     </button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {catForm.subcategories.map((sub, index) => (
                       <div key={index} className="p-3 bg-slate-800/30 rounded-lg">
@@ -680,7 +824,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                             </button>
                           )}
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                           <input
                             type="text"
@@ -709,7 +853,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                   </div>
                 </div>
               )}
-              
+
               <div className="flex gap-3">
                 <button type="submit" className="px-6 py-2 rounded-2xl bg-gradient-to-r from-red-600 to-pink-600 font-semibold">
                   {editingCategory ? 'Update Category' : 'Create Category'}
@@ -737,7 +881,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
               ) : (
                 <div className="space-y-2">
                   {tempCategories.map((cat, index) => (
-                    <div 
+                    <div
                       key={cat._id}
                       className="bg-slate-800/60 rounded-xl p-4 cursor-move"
                       draggable
@@ -771,7 +915,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                           </button>
                         </div>
                       </div>
-                      
+
                       {cat.subcategories?.length > 0 && (
                         <div className="ml-10 mt-3 space-y-2">
                           {cat.subcategories.map((sub, subIndex) => (
@@ -821,44 +965,44 @@ const handleAddSubcategory = async (parentCategoryId) => {
                           </button>
                         </div>
                       </div>
-                      
-       {cat.subcategories?.length > 0 ? (
-  <div className="ml-6 mt-3 space-y-2">
-    <div className="flex items-center justify-between mb-2">
-      <p className="text-sm text-slate-400">Subcategories:</p>
-      <button
-        onClick={() => handleAddSubcategory(cat._id)}
-        className="text-xs px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600"
-      >
-        + Add Subcategory
-      </button>
-    </div>
-    <div className="flex flex-wrap gap-2">
-      {cat.subcategories.map((sub) => (
-        <div key={sub._id} className="bg-slate-700/60 px-3 py-1.5 rounded-full flex items-center gap-2">
-          <span className="text-sm">{sub.name}</span>
-          <span className="text-xs text-slate-400">({sub.order || 0})</span>
-          <button
-            onClick={() => handleDeleteSubcategory(sub._id, sub.name, cat._id)}
-            className="w-5 h-5 rounded-full bg-red-700/80 hover:bg-red-600 flex items-center justify-center ml-1"
-            title="Delete subcategory"
-          >
-            <Trash2 className="w-2.5 h-2.5" />
-          </button>
-        </div>
-      ))}
-    </div>
-  </div>
-) : (
-   <div className="ml-6 mt-3">
-    <button
-      onClick={() => handleAddSubcategory(cat._id)}
-      className="text-sm px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600"
-    >
-      + Add Subcategory
-    </button>
-  </div>
-)}
+
+                      {cat.subcategories?.length > 0 ? (
+                        <div className="ml-6 mt-3 space-y-2">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm text-slate-400">Subcategories:</p>
+                            <button
+                              onClick={() => handleAddSubcategory(cat._id)}
+                              className="text-xs px-2 py-1 rounded-lg bg-slate-700 hover:bg-slate-600"
+                            >
+                              + Add Subcategory
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {cat.subcategories.map((sub) => (
+                              <div key={sub._id} className="bg-slate-700/60 px-3 py-1.5 rounded-full flex items-center gap-2">
+                                <span className="text-sm">{sub.name}</span>
+                                <span className="text-xs text-slate-400">({sub.order || 0})</span>
+                                <button
+                                  onClick={() => handleDeleteSubcategory(sub._id, sub.name, cat._id)}
+                                  className="w-5 h-5 rounded-full bg-red-700/80 hover:bg-red-600 flex items-center justify-center ml-1"
+                                  title="Delete subcategory"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="ml-6 mt-3">
+                          <button
+                            onClick={() => handleAddSubcategory(cat._id)}
+                            className="text-sm px-3 py-1 rounded-lg bg-slate-700 hover:bg-slate-600"
+                          >
+                            + Add Subcategory
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -1024,12 +1168,12 @@ const handleAddSubcategory = async (parentCategoryId) => {
 
               {existingImages.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-xs text-slate-400 mb-1">Existing images:</p>
+                  <p className="text-xs text-slate-400 mb-2">Existing images (drag to reorder):</p>
                   <div className="flex flex-wrap gap-3">
-                    {existingImages.map((url) => (
+                    {existingImages.map((url, index) => (
                       <div
                         key={url}
-                        className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-600"
+                        className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-slate-600 bg-slate-800"
                       >
                         <img
                           src={url}
@@ -1039,10 +1183,32 @@ const handleAddSubcategory = async (parentCategoryId) => {
                         <button
                           type="button"
                           onClick={() => handleRemoveExistingImage(url)}
-                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 flex items-center justify-center text-xs"
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center text-xs shadow-lg z-10"
+                          title="Remove image"
                         >
                           <X className="w-3 h-3" />
                         </button>
+                        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 bg-black/60 p-1">
+                          <button
+                            type="button"
+                            onClick={() => moveExistingImageUp(index)}
+                            disabled={index === 0}
+                            className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Move left"
+                          >
+                            <ChevronLeft className="w-3 h-3" />
+                          </button>
+                          <span className="text-xs text-white font-semibold">{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => moveExistingImageDown(index)}
+                            disabled={index === existingImages.length - 1}
+                            className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Move right"
+                          >
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1051,16 +1217,222 @@ const handleAddSubcategory = async (parentCategoryId) => {
 
               {selectedFiles.length > 0 && (
                 <div className="mt-3">
-                  <p className="text-xs text-slate-400 mb-1">New images to upload:</p>
+                  <p className="text-xs text-slate-400 mb-2">New images to upload (drag to reorder):</p>
                   <div className="flex flex-wrap gap-3">
                     {selectedFiles.map((base64, index) => (
-                      <div key={index} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-600">
+                      <div key={index} className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-emerald-600 bg-slate-800">
                         <img src={base64} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveNewImage(index)}
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center text-xs shadow-lg z-10"
+                          title="Remove image"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-1 bg-black/60 p-1">
+                          <button
+                            type="button"
+                            onClick={() => moveNewImageUp(index)}
+                            disabled={index === 0}
+                            className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Move left"
+                          >
+                            <ChevronLeft className="w-3 h-3" />
+                          </button>
+                          <span className="text-xs text-white font-semibold">{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => moveNewImageDown(index)}
+                            disabled={index === selectedFiles.length - 1}
+                            className="w-6 h-6 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Move right"
+                          >
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Customization Options */}
+            <div className="md:col-span-2 space-y-3 p-4 bg-slate-800/30 rounded-xl border border-slate-600">
+              <h3 className="text-sm font-semibold text-slate-200 mb-2">Product Customization Options</h3>
+              <p className="text-xs text-slate-400 mb-3">Enable these options if customers can personalize this product</p>
+
+              {/* Custom Name Fields */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-300">Custom Name Fields</label>
+                  <button
+                    type="button"
+                    onClick={addCustomNameField}
+                    className="text-xs px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold"
+                  >
+                    + Add Field
+                  </button>
+                </div>
+
+                {form.customNameFields.length > 0 && (
+                  <div className="space-y-2">
+                    {form.customNameFields.map((field, index) => (
+                      <div key={index} className="p-3 bg-slate-800/50 rounded-lg border border-slate-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-slate-400">Field {index + 1}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveCustomNameFieldUp(index)}
+                              disabled={index === 0}
+                              className="p-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move up"
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveCustomNameFieldDown(index)}
+                              disabled={index === form.customNameFields.length - 1}
+                              className="p-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move down"
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeCustomNameField(index)}
+                              className="p-1 rounded bg-red-600 hover:bg-red-500 text-white"
+                              title="Remove field"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <input
+                            type="text"
+                            value={field.label}
+                            onChange={(e) => updateCustomNameField(index, 'label', e.target.value)}
+                            placeholder="Field label (e.g., First Name)"
+                            className="rounded-lg bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
+                          />
+                          <input
+                            type="text"
+                            value={field.placeholder}
+                            onChange={(e) => updateCustomNameField(index, 'placeholder', e.target.value)}
+                            placeholder="Placeholder text (optional)"
+                            className="rounded-lg bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
+                          />
+                          <input
+                            type="number"
+                            value={field.maxLength || ''}
+                            onChange={(e) => updateCustomNameField(index, 'maxLength', parseInt(e.target.value) || '')}
+                            placeholder="Max characters (required)"
+                            min="1"
+                            max="100"
+                            required
+                            className="rounded-lg bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
+                            title="Maximum character limit (1-100) - Required"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Product Types/Variants */}
+              <div className="space-y-3 pt-4 border-t border-slate-600">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-300">Product Types/Variants</label>
+                  <button
+                    type="button"
+                    onClick={addProductType}
+                    className="text-xs px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold"
+                  >
+                    + Add Type
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">Add different types/variants of this product with additional pricing (e.g., Size, Material, etc.)</p>
+
+                {form.productTypes.length > 0 && (
+                  <div className="space-y-2">
+                    {form.productTypes.map((type, index) => (
+                      <div key={index} className="p-3 bg-slate-800/50 rounded-lg border border-slate-600">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-slate-400">Type {index + 1}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => moveProductTypeUp(index)}
+                              disabled={index === 0}
+                              className="p-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move up"
+                            >
+                              <ChevronUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveProductTypeDown(index)}
+                              disabled={index === form.productTypes.length - 1}
+                              className="p-1 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move down"
+                            >
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeProductType(index)}
+                              className="p-1 rounded bg-red-600 hover:bg-red-500 text-white"
+                              title="Remove type"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={type.label}
+                            onChange={(e) => updateProductType(index, 'label', e.target.value)}
+                            placeholder="Type label (e.g., Large Size, Premium Material)"
+                            className="rounded-lg bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
+                          />
+                          <input
+                            type="number"
+                            value={type.additionalPrice || ''}
+                            onChange={(e) => updateProductType(index, 'additionalPrice', parseFloat(e.target.value) || 0)}
+                            placeholder="Additional price (e.g., 50)"
+                            min="0"
+                            step="0.01"
+                            className="rounded-lg bg-slate-800/70 border border-slate-600 px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Final price will be: Base Price (Rs {form.price || 0}) + Additional Price (Rs {type.additionalPrice || 0}) = Rs {(parseFloat(form.price) || 0) + (parseFloat(type.additionalPrice) || 0)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Image */}
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="allowCustomImage"
+                  checked={form.allowCustomImage}
+                  onChange={(e) => setForm(prev => ({ ...prev, allowCustomImage: e.target.checked }))}
+                  className="w-4 h-4 rounded border-slate-600 text-red-600 focus:ring-red-500 focus:ring-offset-slate-900"
+                />
+                <label htmlFor="allowCustomImage" className="text-sm text-slate-300 cursor-pointer">
+                  Allow customers to upload custom image
+                </label>
+              </div>
             </div>
 
             <div className="md:col-span-2 flex justify-end">
@@ -1074,8 +1446,8 @@ const handleAddSubcategory = async (parentCategoryId) => {
                     ? 'Updating...'
                     : 'Creating...'
                   : editingId
-                  ? 'Update Product'
-                  : 'Create Product'}
+                    ? 'Update Product'
+                    : 'Create Product'}
               </button>
             </div>
           </form>
@@ -1101,7 +1473,7 @@ const handleAddSubcategory = async (parentCategoryId) => {
                   </option>
                 ))}
               </select>
-              
+
               {filterCategory && (
                 <select
                   value={filterSubcategory}
@@ -1116,9 +1488,9 @@ const handleAddSubcategory = async (parentCategoryId) => {
                   ))}
                 </select>
               )}
-              
+
               <button
-                onClick={() => { 
+                onClick={() => {
                   setFilterCategory('');
                   setFilterSubcategory('');
                   fetchProducts();

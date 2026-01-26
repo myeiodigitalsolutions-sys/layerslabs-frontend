@@ -29,6 +29,11 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Customization state
+  const [customNames, setCustomNames] = useState([]);
+  const [customImage, setCustomImage] = useState(null);
+  const [selectedProductType, setSelectedProductType] = useState(null);
+
   // UI state for navbar/sidebar integration
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [categories, setCategories] = useState([]);
@@ -79,16 +84,56 @@ export default function ProductPage() {
     setSelectedImage(product.images[prevIndex]);
   };
 
+  const handleCustomImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setCustomImage(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Calculate total price based on base price + selected type's additional price
+  const calculateTotalPrice = () => {
+    const basePrice = parseFloat(product?.price) || 0;
+    const additionalPrice = selectedProductType ? (parseFloat(selectedProductType.additionalPrice) || 0) : 0;
+    return basePrice + additionalPrice;
+  };
+
   const handleBuyNow = () => {
+    // Product types are optional - customers can buy base product or select a type
+
+    // Validate customization fields if required
+    if (product.customNameFields && product.customNameFields.length > 0) {
+      for (let i = 0; i < product.customNameFields.length; i++) {
+        if (!customNames[i] || !customNames[i].trim()) {
+          alert(`Please enter ${product.customNameFields[i].label}`);
+          return;
+        }
+      }
+    }
+    if (product.allowCustomImage && !customImage) {
+      alert('Please upload a custom image for this product');
+      return;
+    }
+
+    const totalPrice = calculateTotalPrice();
+
     const pendingOrder = {
       type: "product",
       product: [
         {
           productId: product._id,
           name: product.name,
-          price: product.price,
+          price: totalPrice,
+          basePrice: product.price,
           qty: quantity,
-          image: selectedImage
+          image: selectedImage,
+          customNames: customNames.length > 0 ? customNames : [],
+          customImage: customImage || null,
+          selectedProductType: selectedProductType || null,
         }
       ]
     };
@@ -103,8 +148,12 @@ export default function ProductPage() {
       return;
     }
 
+    // Product types are optional - customers can buy base product or select a type
+
     try {
       const token = await getIdToken(auth.currentUser);
+      const totalPrice = calculateTotalPrice();
+
       await fetch(`${API_BASE_URL}/api/cart/add`, {
         method: "POST",
         headers: {
@@ -114,9 +163,11 @@ export default function ProductPage() {
         body: JSON.stringify({
           productId: product._id,
           name: product.name,
-          price: product.price,
+          price: totalPrice,
+          basePrice: product.price,
           image: selectedImage,
           qty: quantity,
+          selectedProductType: selectedProductType || null,
         }),
       });
 
@@ -175,7 +226,7 @@ export default function ProductPage() {
       />
 
       {/* Main Product Section */}
-      <section className="pt-20 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 bg-gradient-to-br from-red-50 via-pink-50 to-white min-h-screen">
+      <section className="pt-20 sm:pt-24 md:pt-32 pb-12 sm:pb-16 md:pb-24 bg-gradient-to-br from-red-50 via-pink-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Back Button */}
           <Link
@@ -186,8 +237,8 @@ export default function ProductPage() {
           </Link>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16">
-            {/* Left: Image Gallery */}
-            <div className="space-y-4 sm:space-y-6">
+            {/* Left: Image Gallery - Sticky on desktop */}
+            <div className="space-y-4 sm:space-y-6 lg:sticky lg:top-24 lg:self-start max-w-lg mx-auto lg:mx-0">
               {/* Main Image with Navigation */}
               <div className="relative group rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl sm:shadow-2xl bg-white">
                 <img
@@ -210,13 +261,12 @@ export default function ProductPage() {
                 </button>
                 {product.tag && (
                   <div
-                    className={`absolute top-3 left-3 sm:top-6 sm:left-6 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-white font-bold text-xs sm:text-sm shadow-lg ${
-                      product.tag === 'Best Seller'
-                        ? 'bg-gradient-to-r from-yellow-500 to-orange-600'
-                        : product.tag === 'New'
+                    className={`absolute top-3 left-3 sm:top-6 sm:left-6 px-4 py-1.5 sm:px-6 sm:py-2 rounded-full text-white font-bold text-xs sm:text-sm shadow-lg ${product.tag === 'Best Seller'
+                      ? 'bg-gradient-to-r from-yellow-500 to-orange-600'
+                      : product.tag === 'New'
                         ? 'bg-gradient-to-r from-emerald-500 to-teal-600'
                         : 'bg-gradient-to-r from-red-600 to-pink-600'
-                    }`}
+                      }`}
                   >
                     {product.tag}
                   </div>
@@ -229,11 +279,10 @@ export default function ProductPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedImage(img)}
-                    className={`aspect-square rounded-lg sm:rounded-2xl overflow-hidden border-2 sm:border-4 transition-all ${
-                      selectedImage === img
-                        ? 'border-red-500 shadow-lg'
-                        : 'border-gray-200 hover:border-red-300'
-                    }`}
+                    className={`aspect-square rounded-lg sm:rounded-2xl overflow-hidden border-2 sm:border-4 transition-all ${selectedImage === img
+                      ? 'border-red-500 shadow-lg'
+                      : 'border-gray-200 hover:border-red-300'
+                      }`}
                   >
                     <img
                       src={img}
@@ -273,11 +322,10 @@ export default function ProductPage() {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 ${
-                          i < Math.floor(product.rating || 0)
-                            ? 'fill-current'
-                            : 'text-gray-300'
-                        }`}
+                        className={`w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 ${i < Math.floor(product.rating || 0)
+                          ? 'fill-current'
+                          : 'text-gray-300'
+                          }`}
                       />
                     ))}
                   </div>
@@ -292,7 +340,7 @@ export default function ProductPage() {
                 </div>
 
                 {/* Description */}
-                <p className="text-base sm:text-lg md:text-xl text-gray-700 leading-relaxed mb-6 sm:mb-8 md:mb-10">
+                <p className="text-base sm:text-lg text-gray-700 leading-loose text-justify mb-6 sm:mb-8 md:mb-10">
                   {product.description}
                 </p>
 
@@ -307,6 +355,144 @@ export default function ProductPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Product Types/Variants Selector */}
+                {product.productTypes && product.productTypes.length > 0 && (
+                  <div className="mb-8 sm:mb-10 md:mb-12">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                      Select Product Type <span className="text-sm font-normal text-gray-500">(Optional)</span>
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choose a type for additional features, or buy the base product at Rs {product.price}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      {/* Base Product Option */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProductType(null)}
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${selectedProductType === null
+                            ? 'border-red-500 bg-red-50 shadow-lg'
+                            : 'border-gray-300 hover:border-red-300 bg-white'
+                          }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-gray-900 text-base sm:text-lg">Base Product</p>
+                            <p className="text-sm text-gray-600 mt-1">
+                              No additional features
+                            </p>
+                          </div>
+                          {selectedProductType === null && (
+                            <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
+                              <Check className="w-4 h-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Total: Rs {product.price}
+                        </p>
+                      </button>
+
+                      {/* Product Types */}
+                      {product.productTypes.map((type, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => setSelectedProductType(type)}
+                          className={`p-4 rounded-xl border-2 transition-all text-left ${selectedProductType === type
+                            ? 'border-red-500 bg-red-50 shadow-lg'
+                            : 'border-gray-300 hover:border-red-300 bg-white'
+                            }`}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-bold text-gray-900 text-base sm:text-lg">{type.label}</p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                +Rs {type.additionalPrice}
+                              </p>
+                            </div>
+                            {selectedProductType === type && (
+                              <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
+                                <Check className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Total: Rs {parseFloat(product.price) + parseFloat(type.additionalPrice)}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Customization Section */}
+                {((product.customNameFields && product.customNameFields.length > 0) || product.allowCustomImage) && (
+                  <div className="mb-8 sm:mb-10 md:mb-12 p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-2xl border-2 border-red-200">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">
+                      Customize Your Product
+                    </h3>
+
+                    {product.customNameFields && product.customNameFields.length > 0 && (
+                      <div className="space-y-4 mb-4">
+                        {product.customNameFields.map((field, index) => {
+                          const maxLen = field.maxLength || 50; // Fallback for old products
+                          const isLimitSet = !!field.maxLength;
+                          return (
+                            <div key={index}>
+                              <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                                {field.label} * <span className="text-xs text-gray-500">(Max {maxLen} characters)</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={customNames[index] || ''}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (value.length > maxLen) {
+                                    alert(`Character limit is ${maxLen} characters`);
+                                    return;
+                                  }
+                                  const newNames = [...customNames];
+                                  newNames[index] = value;
+                                  setCustomNames(newNames);
+                                }}
+                                maxLength={maxLen}
+                                placeholder={field.placeholder || `Enter ${field.label}`}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 focus:border-red-500 focus:outline-none text-gray-900"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                {(customNames[index] || '').length}/{maxLen} characters
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {product.allowCustomImage && (
+                      <div>
+                        <label className="block text-sm sm:text-base font-semibold text-gray-700 mb-2">
+                          Custom Image *
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleCustomImageChange}
+                          className="w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-500"
+                        />
+                        {customImage && (
+                          <div className="mt-3">
+                            <img
+                              src={customImage}
+                              alt="Custom preview"
+                              className="w-32 h-32 object-cover rounded-xl border-2 border-red-300"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Quantity Selector */}
                 <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8 md:mb-10">

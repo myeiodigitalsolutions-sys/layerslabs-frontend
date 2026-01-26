@@ -248,13 +248,60 @@ export default function RegularOrders() {
                           </h4>
                           <div className="space-y-2 bg-white rounded-xl p-4 border border-gray-200">
                             {o.items.slice(0, 5).map((item, idx) => (
-                              <div key={idx} className="flex justify-between text-sm">
-                                <span className="text-gray-700">
-                                  {item.name} × {item.qty}
-                                </span>
-                                <span className="font-medium text-gray-900">
-                                  ₹{item.price * item.qty}
-                                </span>
+                              <div key={idx} className="border-b border-gray-100 pb-2 last:border-0">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-700">
+                                    {item.name} × {item.qty}
+                                  </span>
+                                  <span className="font-medium text-gray-900">
+                                    ₹{item.price * item.qty}
+                                  </span>
+                                </div>
+
+                                {/* Display customization if present */}
+                                {((item.customNames && item.customNames.length > 0) || item.customImage || item.selectedProductType) && (
+                                  <div className="mt-2 p-2 bg-purple-50 rounded-lg border border-purple-200">
+                                    <p className="text-xs font-semibold text-purple-700 mb-1">Customization:</p>
+
+                                    {/* Product Type */}
+                                    {item.selectedProductType && (
+                                      <div className="mb-2 p-2 bg-white rounded border border-purple-300">
+                                        <p className="text-xs text-gray-700">
+                                          <span className="font-medium">Type:</span> {item.selectedProductType.label}
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                          Base: ₹{item.basePrice} + ₹{item.selectedProductType.additionalPrice} = ₹{item.price}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {item.customNames && item.customNames.length > 0 && (
+                                      <div className="space-y-0.5 mb-1">
+                                        {item.customNames.map((name, nameIdx) => (
+                                          <p key={nameIdx} className="text-xs text-gray-700">
+                                            <span className="font-medium">Field {nameIdx + 1}:</span> {name}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {item.customImage && (
+                                      <div className="mt-1 flex items-center gap-2">
+                                        <img
+                                          src={item.customImage}
+                                          alt="Custom"
+                                          className="w-12 h-12 object-cover rounded border border-purple-300"
+                                        />
+                                        <a
+                                          href={item.customImage}
+                                          download={`custom-image-${o._id}-${idx}.jpg`}
+                                          className="text-xs px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
+                                        >
+                                          Download
+                                        </a>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ))}
                             {o.items.length > 5 && (
